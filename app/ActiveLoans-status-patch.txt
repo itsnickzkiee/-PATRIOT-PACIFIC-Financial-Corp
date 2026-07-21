@@ -1,0 +1,11 @@
+
+const activeStatuses = [
+  "Loan Setup",
+  "Disclosed",
+  "Submitted to Underwriting",
+  "Approved w/ Conditions",
+  "Re-submittal",
+  "Clear to Close",
+  "Docs Out",
+  "Docs Signed",
+];
