@@ -8,7 +8,7 @@ import { useAuth } from "@/state/AuthContext";
 import type { Loan } from "../data/mock";
 
 const API_URL =
-  "http://localhost:5000/api";
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
 
 export default function ArchivedLoans() {
   const { user } = useAuth();
@@ -40,9 +40,7 @@ export default function ArchivedLoans() {
           `${API_URL}/loans`,
           {
             headers: {
-              "x-user-id": String(
-                user.id,
-              ),
+              "x-user-id": String(user.id),
             },
           },
         );

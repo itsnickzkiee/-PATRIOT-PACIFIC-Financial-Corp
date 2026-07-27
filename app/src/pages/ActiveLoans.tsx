@@ -71,6 +71,9 @@ import { useWorkspace } from "@/state/workspace";
 
 import "./ActiveLoans.css";
 
+const API_URL =
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
+
 const months = [
   "Jan",
   "Feb",
@@ -254,7 +257,7 @@ export default function ActiveLoans() {
 
         const response =
           await fetch(
-            "http://localhost:5000/api/loans",
+            `${API_URL}/loans`,
             {
               headers: {
                 "x-user-id": String(user?.id ?? ""),
@@ -410,7 +413,7 @@ export default function ActiveLoans() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/users/loan-officers",
+        `${API_URL}/users/loan-officers`,
         {
           headers: {
             "x-user-id": String(user.id),
@@ -499,7 +502,7 @@ export default function ActiveLoans() {
       setAssignmentError("");
 
       const response = await fetch(
-        `http://localhost:5000/api/loans/${assignmentLoan.id}/loan-officer`,
+        `${API_URL}/loans/${assignmentLoan.id}/loan-officer`,
         {
           method: "PATCH",
           headers: {
@@ -659,7 +662,7 @@ export default function ActiveLoans() {
       setAssignmentError("");
 
       const response = await fetch(
-        `http://localhost:5000/api/loans/${assignmentLoan.id}/loan-officer`,
+        `${API_URL}/loans/${assignmentLoan.id}/loan-officer`,
         {
           method: "PATCH",
           headers: {
