@@ -1,4 +1,8 @@
-const API_URL = "http://localhost:5000/api";
+const BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000";
+
+const API_URL = `${BASE_URL}/api`;
 
 export function getStoredToken(): string | null {
   try {
@@ -25,15 +29,17 @@ export async function apiFetch(
   options: RequestInit = {},
 ): Promise<Response> {
   const token = getStoredToken();
+  const headers = new Headers(options.headers);
 
-  const headers = new Headers(
-    options.headers,
-  );
-
-  headers.set(
-    "Content-Type",
-    "application/json",
-  );
+  if (
+    options.body !== undefined &&
+    !(options.body instanceof FormData)
+  ) {
+    headers.set(
+      "Content-Type",
+      "application/json",
+    );
+  }
 
   if (token) {
     headers.set(
@@ -42,8 +48,13 @@ export async function apiFetch(
     );
   }
 
+  const formattedEndpoint =
+    endpoint.startsWith("/")
+      ? endpoint
+      : `/${endpoint}`;
+
   return fetch(
-    `${API_URL}${endpoint}`,
+    `${API_URL}${formattedEndpoint}`,
     {
       ...options,
       headers,

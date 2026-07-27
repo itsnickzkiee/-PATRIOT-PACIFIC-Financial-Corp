@@ -18,8 +18,10 @@ import {
 import Drawer from "./Drawer";
 import { useWorkspace } from "../state/workspace";
 
-const API_URL = "http://localhost:5000/api";
-const SERVER_URL = "http://localhost:5000";
+const API_URL =
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
+const SERVER_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 type LoanFolder = {
   id: number;
@@ -113,6 +115,8 @@ export default function LoanFilesSheet() {
   if (!activeLoan) return null;
 
   async function createFolder() {
+    if (!activeLoan) return;
+
     const name = folderName.trim();
     if (!name) return;
 
@@ -146,6 +150,8 @@ export default function LoanFilesSheet() {
   }
 
   async function uploadFiles(selected: FileList | File[]) {
+    if (!activeLoan) return;
+
     const chosen = Array.from(selected);
     if (chosen.length === 0) return;
 

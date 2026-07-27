@@ -12,7 +12,8 @@ import { useAuth } from "@/state/AuthContext";
 
 import "@/styles/ChangePassword.css";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL =
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
 
 type ChangePasswordResponse = {
   message?: string;

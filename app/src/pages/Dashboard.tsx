@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import "@/styles/loan-dashboard.css";
 import { useAuth } from "@/state/AuthContext";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL =
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
 
 type LoanRecord = {
   id?: string | number;

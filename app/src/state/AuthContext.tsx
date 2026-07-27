@@ -51,7 +51,8 @@ const AuthContext = createContext<
 const LOCAL_AUTH_KEY = "patriotAuth";
 const SESSION_AUTH_KEY = "patriotSessionAuth";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL =
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
 
 function readStoredAuth(): StoredAuth | null {
   try {
