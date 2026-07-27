@@ -16,10 +16,12 @@ export type User = {
 type LoginResult = {
   success: boolean;
   message: string;
+  mustChangePassword?: boolean;
 };
 
 type AuthContextType = {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
 
   login: (
@@ -33,10 +35,12 @@ type AuthContextType = {
 
 type StoredAuth = {
   user: User;
+  token: string;
 };
 
 type LoginResponse = {
   message?: string;
+  token?: string;
   user?: User;
 };
 
@@ -49,7 +53,7 @@ const SESSION_AUTH_KEY = "patriotSessionAuth";
 
 const API_URL = "http://localhost:5000/api";
 
-function readCurrentUser(): User | null {
+function readStoredAuth(): StoredAuth | null {
   try {
     const savedAuth =
       localStorage.getItem(LOCAL_AUTH_KEY) ??
@@ -61,12 +65,30 @@ function readCurrentUser(): User | null {
 
     const parsedAuth = JSON.parse(
       savedAuth,
-    ) as StoredAuth;
+    ) as Partial<StoredAuth>;
 
-    return parsedAuth.user;
+    if (
+      !parsedAuth.user ||
+      typeof parsedAuth.token !== "string" ||
+      !parsedAuth.token.trim()
+    ) {
+      localStorage.removeItem(LOCAL_AUTH_KEY);
+      sessionStorage.removeItem(
+        SESSION_AUTH_KEY,
+      );
+
+      return null;
+    }
+
+    return {
+      user: parsedAuth.user,
+      token: parsedAuth.token,
+    };
   } catch {
     localStorage.removeItem(LOCAL_AUTH_KEY);
-    sessionStorage.removeItem(SESSION_AUTH_KEY);
+    sessionStorage.removeItem(
+      SESSION_AUTH_KEY,
+    );
 
     return null;
   }
@@ -77,9 +99,13 @@ export function AuthProvider({
 }: {
   children: ReactNode;
 }) {
-  const [user, setUser] = useState<User | null>(
-    readCurrentUser,
-  );
+  const [storedAuth, setStoredAuth] =
+    useState<StoredAuth | null>(
+      readStoredAuth,
+    );
+
+  const user = storedAuth?.user ?? null;
+  const token = storedAuth?.token ?? null;
 
   async function login(
     email: string,
@@ -104,7 +130,8 @@ export function AuthProvider({
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
           body: JSON.stringify({
             email: cleanEmail,
@@ -116,7 +143,11 @@ export function AuthProvider({
       const data =
         (await response.json()) as LoginResponse;
 
-      if (!response.ok || !data.user) {
+      if (
+        !response.ok ||
+        !data.user ||
+        !data.token
+      ) {
         return {
           success: false,
           message:
@@ -125,11 +156,15 @@ export function AuthProvider({
         };
       }
 
-      const storedAuth: StoredAuth = {
+      const nextAuth: StoredAuth = {
         user: data.user,
+        token: data.token,
       };
 
-      localStorage.removeItem(LOCAL_AUTH_KEY);
+      localStorage.removeItem(
+        LOCAL_AUTH_KEY,
+      );
+
       sessionStorage.removeItem(
         SESSION_AUTH_KEY,
       );
@@ -137,21 +172,24 @@ export function AuthProvider({
       if (rememberMe) {
         localStorage.setItem(
           LOCAL_AUTH_KEY,
-          JSON.stringify(storedAuth),
+          JSON.stringify(nextAuth),
         );
       } else {
         sessionStorage.setItem(
           SESSION_AUTH_KEY,
-          JSON.stringify(storedAuth),
+          JSON.stringify(nextAuth),
         );
       }
 
-      setUser(data.user);
+      setStoredAuth(nextAuth);
 
       return {
         success: true,
         message:
-          data.message ?? "Login successful.",
+          data.message ??
+          "Login successful.",
+        mustChangePassword:
+          data.user.mustChangePassword,
       };
     } catch (error) {
       console.error(
@@ -168,20 +206,25 @@ export function AuthProvider({
   }
 
   function logout(): void {
-    localStorage.removeItem(LOCAL_AUTH_KEY);
+    localStorage.removeItem(
+      LOCAL_AUTH_KEY,
+    );
 
     sessionStorage.removeItem(
       SESSION_AUTH_KEY,
     );
 
-    setUser(null);
+    setStoredAuth(null);
   }
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: Boolean(user),
+        token,
+        isAuthenticated: Boolean(
+          user && token,
+        ),
         login,
         logout,
       }}

@@ -98,11 +98,11 @@ export default function Login() {
 
   setMessageType("success");
 
-  window.setTimeout(() => {
-    navigate(destination, {
-      replace: true,
-    });
-  }, 500);
+ window.setTimeout(() => {
+  navigate(destination, {
+    replace: true,
+  });
+}, 500);
 
   setIsLoading(false);
 }

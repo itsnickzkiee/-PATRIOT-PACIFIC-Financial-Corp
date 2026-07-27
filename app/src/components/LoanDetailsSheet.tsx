@@ -93,7 +93,11 @@ export default function LoanDetailsSheet() {
   const canSave = canEditLoanDetails || canEditAccounting;
   const open = panel === "details" && !!activeLoan;
 
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [form, setForm] =
+    useState<Record<string, string>>({});
+
+  const [saving, setSaving] =
+    useState(false);
   useEffect(() => {
     if (activeLoan) {
       setForm({
@@ -123,6 +127,131 @@ export default function LoanDetailsSheet() {
     const deductions = n("lockCost") + n("lenderCredit") + n("flatFee");
     return { revenue, deductions, net: revenue - deductions };
   }, [form]);
+
+  async function saveLoanChanges() {
+    if (
+      !activeLoan ||
+      !user?.id ||
+      !canSave ||
+      saving
+    ) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const response = await fetch(
+        `http://localhost:5000/api/loans/${activeLoan.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type":
+              "application/json",
+            "x-user-id": String(user.id),
+          },
+          body: JSON.stringify({
+            borrower:
+              form.borrower?.trim() ||
+              activeLoan.borrower,
+            status: activeLoan.status,
+            fundedDate:
+              activeLoan.fundedDate ||
+              null,
+            calcCompleted:
+              activeLoan.calcCompleted ||
+              null,
+            payrollProcessed:
+              activeLoan.payrollProcessed ||
+              null,
+            primaryLO:
+              activeLoan.primaryLO,
+            lo2: activeLoan.lo2,
+            lo3: activeLoan.lo3,
+            state:
+              form.state
+                ?.trim()
+                .toUpperCase() ||
+              activeLoan.state,
+            hasNotes:
+              activeLoan.hasNotes,
+            filesCount:
+              activeLoan.filesCount,
+            property:
+              form.property?.trim() ||
+              activeLoan.property,
+            baseLoanAmount:
+              Number(form.base || 0),
+            totalLoanAmount:
+              Number(form.total || 0),
+            loanExpDate:
+              form.exp?.trim() || null,
+            lockPricing:
+              Number(form.lock || 0),
+            type: activeLoan.type,
+            revenue: {
+              originationA1:
+                Number(form.a1 || 0),
+              originationA2:
+                Number(form.a2 || 0),
+              originationA3:
+                Number(form.a3 || 0),
+              pointsA01:
+                Number(form.points || 0),
+              ysp:
+                Number(form.ysp || 0),
+            },
+            deductions: {
+              lockCost:
+                Number(
+                  form.lockCost || 0,
+                ),
+              lenderCredit:
+                Number(
+                  form.lenderCredit || 0,
+                ),
+              flatFee:
+                Number(
+                  form.flatFee || 0,
+                ),
+            },
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.message ||
+            "Unable to save loan changes.",
+        );
+      }
+
+      pushToast(
+        `Changes saved to loan #${activeLoan.id}`,
+      );
+
+      closePanel();
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 350);
+    } catch (error) {
+      console.error(
+        "Save loan changes error:",
+        error,
+      );
+
+      pushToast(
+        error instanceof Error
+          ? error.message
+          : "Unable to save loan changes.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!activeLoan) return null;
   const set = (k: string) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -403,13 +532,16 @@ export default function LoanDetailsSheet() {
         </button>
         {canSave ? (
           <button
+            type="button"
             onClick={() => {
-              pushToast(`Changes saved to loan #${activeLoan.id}`);
-              closePanel();
+              void saveLoanChanges();
             }}
-            className="rounded-full bg-gradient-to-r from-rose-700 to-rose-600 px-6 py-2 text-sm font-bold text-white shadow-md shadow-rose-700/25 transition hover:brightness-110 active:scale-95"
+            disabled={saving}
+            className="rounded-full bg-gradient-to-r from-rose-700 to-rose-600 px-6 py-2 text-sm font-bold text-white shadow-md shadow-rose-700/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Save changes
+            {saving
+              ? "Saving..."
+              : "Save changes"}
           </button>
         ) : (
           <span className="rounded-full bg-stone-200 px-5 py-2 text-sm font-semibold text-muted-foreground">

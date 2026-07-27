@@ -5,6 +5,10 @@ import type {
 } from "mysql2";
 
 import pool from "../config/database.js";
+import {
+  createNotification,
+} from "../../services/notificationService.js";
+import { sendLoanAssignmentEmail } from "../../services/emailService.js";
 
 const router = Router();
 
@@ -79,10 +83,16 @@ interface LoanRequestBody {
   };
 }
 
+interface AssignLoanOfficerBody {
+  slot?: "primary_lo" | "lo2" | "lo3";
+  userId?: number | null;
+}
+
 
 interface CurrentUserRow extends RowDataPacket {
   id: number;
   full_name: string;
+  email: string | null;
   role: string;
   status?: string;
 }
@@ -163,6 +173,7 @@ async function getCurrentUser(
         SELECT
           id,
           full_name,
+          email,
           role,
           status
         FROM users
@@ -178,11 +189,16 @@ async function getCurrentUser(
     return null;
   }
 
-  if (
-    user.status &&
-    user.status.toLowerCase() !== "active"
-  ) {
-    return null;
+  if (user.status) {
+    const normalizedStatus =
+      user.status.trim().toLowerCase();
+
+    if (
+      normalizedStatus !== "active" &&
+      normalizedStatus !== "registered"
+    ) {
+      return null;
+    }
   }
 
   return user;
@@ -403,9 +419,337 @@ function validateRequiredFields(
   return null;
 }
 
-// GET all loans
-router.get("/", async (_req, res) => {
+function getAssignmentSlotLabel(
+  slot: "primary_lo" | "lo2" | "lo3",
+): string {
+  if (slot === "primary_lo") {
+    return "Primary LO";
+  }
+
+  if (slot === "lo2") {
+    return "LO 2";
+  }
+
+  return "LO 3";
+}
+
+async function findLoanOfficerByName(
+  fullName: string | null,
+): Promise<CurrentUserRow | null> {
+  if (!fullName?.trim()) {
+    return null;
+  }
+
+  const [rows] =
+    await pool.query<CurrentUserRow[]>(
+      `
+        SELECT
+          id,
+          full_name,
+          email,
+          role,
+          status
+        FROM users
+        WHERE LOWER(TRIM(full_name)) =
+          LOWER(TRIM(?))
+          AND LOWER(role) = 'loan officer'
+        LIMIT 1
+      `,
+      [fullName],
+    );
+
+  return rows[0] ?? null;
+}
+
+async function createUserNotification(
+  userId: number,
+  message: string,
+  type = "loan_assignment",
+): Promise<void> {
+  await createNotification(
+    userId,
+    message,
+    type,
+  );
+}
+
+type LoanChangeField = {
+  label: string;
+  before: unknown;
+  after: unknown;
+};
+
+function normalizeComparableValue(
+  value: unknown,
+): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "number") {
+    return String(Number(value));
+  }
+
+  return String(value).trim();
+}
+
+function getLoanDetailChanges(
+  existing: LoanRow,
+  incoming: LoanRequestBody,
+): string[] {
+  const fields: LoanChangeField[] = [
+    {
+      label: "Primary Borrower",
+      before: existing.borrower,
+      after: incoming.borrower,
+    },
+    {
+      label: "Status",
+      before: existing.status,
+      after: incoming.status,
+    },
+    {
+      label: "Funded Date",
+      before: formatDate(existing.funded_date),
+      after: emptyToNull(incoming.fundedDate),
+    },
+    {
+      label: "Calculation Completed",
+      before: formatDate(existing.calc_completed),
+      after: emptyToNull(
+        incoming.calcCompleted,
+      ),
+    },
+    {
+      label: "Payroll Processed",
+      before: formatDate(
+        existing.payroll_processed,
+      ),
+      after: emptyToNull(
+        incoming.payrollProcessed,
+      ),
+    },
+    {
+      label: "State",
+      before: existing.state,
+      after: incoming.state
+        ?.trim()
+        .toUpperCase(),
+    },
+    {
+      label: "Subject Property",
+      before: existing.property,
+      after: incoming.property,
+    },
+    {
+      label: "Base Loan Amount",
+      before: Number(
+        existing.base_loan_amount,
+      ),
+      after: Number(
+        incoming.baseLoanAmount ?? 0,
+      ),
+    },
+    {
+      label: "Total Loan Amount",
+      before: Number(
+        existing.total_loan_amount,
+      ),
+      after: Number(
+        incoming.totalLoanAmount ?? 0,
+      ),
+    },
+    {
+      label: "Loan Expiration Date",
+      before: formatDate(
+        existing.loan_exp_date,
+      ),
+      after: emptyToNull(
+        incoming.loanExpDate,
+      ),
+    },
+    {
+      label: "Lock Pricing",
+      before: Number(existing.lock_pricing),
+      after: Number(
+        incoming.lockPricing ?? 0,
+      ),
+    },
+    {
+      label: "Loan Type",
+      before: existing.loan_type,
+      after: incoming.type,
+    },
+    {
+      label: "Origination Charge A1",
+      before: Number(
+        existing.origination_a1,
+      ),
+      after: Number(
+        incoming.revenue
+          ?.originationA1 ?? 0,
+      ),
+    },
+    {
+      label: "Origination Charge A2",
+      before: Number(
+        existing.origination_a2,
+      ),
+      after: Number(
+        incoming.revenue
+          ?.originationA2 ?? 0,
+      ),
+    },
+    {
+      label: "Origination Charge A3",
+      before: Number(
+        existing.origination_a3,
+      ),
+      after: Number(
+        incoming.revenue
+          ?.originationA3 ?? 0,
+      ),
+    },
+    {
+      label: "Points Section A Line 01",
+      before: Number(existing.points_a01),
+      after: Number(
+        incoming.revenue?.pointsA01 ??
+          0,
+      ),
+    },
+    {
+      label: "Yield Spread Premium",
+      before: Number(existing.ysp),
+      after: Number(
+        incoming.revenue?.ysp ?? 0,
+      ),
+    },
+    {
+      label: "Lock Cost",
+      before: Number(existing.lock_cost),
+      after: Number(
+        incoming.deductions?.lockCost ??
+          0,
+      ),
+    },
+    {
+      label: "Lender Credit",
+      before: Number(
+        existing.lender_credit,
+      ),
+      after: Number(
+        incoming.deductions
+          ?.lenderCredit ?? 0,
+      ),
+    },
+    {
+      label: "Flat Fee",
+      before: Number(existing.flat_fee),
+      after: Number(
+        incoming.deductions?.flatFee ??
+          0,
+      ),
+    },
+  ];
+
+  return fields
+    .filter(
+      (field) =>
+        normalizeComparableValue(
+          field.before,
+        ) !==
+        normalizeComparableValue(
+          field.after,
+        ),
+    )
+    .map((field) => field.label);
+}
+
+async function notifyLoanOperationsUsers(
+  message: string,
+): Promise<void> {
+  const [rows] =
+    await pool.query<CurrentUserRow[]>(
+      `
+        SELECT
+          id,
+          full_name,
+          email,
+          role,
+          status
+        FROM users
+        WHERE LOWER(TRIM(role)) IN (
+          'admin',
+          'super admin',
+          'super_admin',
+          'superadmin',
+          'system administrator',
+          'system_administrator',
+          'processor',
+          'accounting'
+        )
+          AND LOWER(TRIM(status)) IN (
+            'active',
+            'registered'
+          )
+      `,
+    );
+
+  await Promise.all(
+    rows.map((recipient) =>
+      createUserNotification(
+        recipient.id,
+        message,
+        "loan_update",
+      ),
+    ),
+  );
+}
+
+// GET loans visible to the logged-in user
+router.get("/", async (req, res) => {
   try {
+    const currentUser =
+      await getCurrentUser(req);
+
+    if (!currentUser) {
+      res.status(401).json({
+        message:
+          "A valid logged-in user is required.",
+      });
+      return;
+    }
+
+    const role =
+      normalizeRole(currentUser.role);
+
+    if (role === "loan_officer") {
+      const [rows] =
+        await pool.query<LoanRow[]>(
+          `
+            SELECT *
+            FROM loans
+            WHERE
+              LOWER(TRIM(primary_lo)) =
+                LOWER(TRIM(?))
+              OR LOWER(TRIM(lo2)) =
+                LOWER(TRIM(?))
+              OR LOWER(TRIM(lo3)) =
+                LOWER(TRIM(?))
+            ORDER BY created_at DESC
+          `,
+          [
+            currentUser.full_name,
+            currentUser.full_name,
+            currentUser.full_name,
+          ],
+        );
+
+      res.json(rows.map(mapLoan));
+      return;
+    }
+
     const [rows] =
       await pool.query<LoanRow[]>(
         `
@@ -427,6 +771,342 @@ router.get("/", async (_req, res) => {
     });
   }
 });
+
+// ASSIGN a Loan Officer to Primary LO, LO2 or LO3
+router.patch(
+  "/:id/loan-officer",
+  async (req, res) => {
+    try {
+      const currentUser =
+        await getCurrentUser(req);
+
+      if (!currentUser) {
+        res.status(401).json({
+          message:
+            "A valid logged-in user is required.",
+        });
+        return;
+      }
+
+      if (
+        normalizeRole(currentUser.role) !==
+        "admin"
+      ) {
+        res.status(403).json({
+          message:
+            "Only an Admin can assign loan officers.",
+        });
+        return;
+      }
+
+      const body =
+        req.body as AssignLoanOfficerBody;
+
+      const slot = body.slot;
+      const isRemoval =
+        body.userId === null;
+
+      const userId = isRemoval
+        ? null
+        : Number(body.userId);
+
+      if (
+        slot !== "primary_lo" &&
+        slot !== "lo2" &&
+        slot !== "lo3"
+      ) {
+        res.status(400).json({
+          message:
+            "The assignment slot must be primary_lo, lo2 or lo3.",
+        });
+        return;
+      }
+
+      if (
+        !isRemoval &&
+        (
+          !Number.isInteger(userId) ||
+          Number(userId) <= 0
+        )
+      ) {
+        res.status(400).json({
+          message:
+            "A valid Loan Officer user is required.",
+        });
+        return;
+      }
+
+      const [loanRows] =
+        await pool.query<LoanRow[]>(
+          `
+            SELECT *
+            FROM loans
+            WHERE id = ?
+            LIMIT 1
+          `,
+          [req.params.id],
+        );
+
+      if (loanRows.length === 0) {
+        res.status(404).json({
+          message: "Loan not found.",
+        });
+        return;
+      }
+
+      const loan = loanRows[0];
+
+      const column:
+        | "primary_lo"
+        | "lo2"
+        | "lo3" =
+        slot === "primary_lo"
+          ? "primary_lo"
+          : slot === "lo2"
+            ? "lo2"
+            : "lo3";
+
+      const slotLabel =
+        getAssignmentSlotLabel(slot);
+
+      const currentAssignedName =
+        column === "primary_lo"
+          ? loan.primary_lo
+          : column === "lo2"
+            ? loan.lo2
+            : loan.lo3;
+
+      const previousOfficer =
+        await findLoanOfficerByName(
+          currentAssignedName,
+        );
+
+      if (isRemoval) {
+        await pool.execute<ResultSetHeader>(
+          `
+            UPDATE loans
+            SET ${column} = NULL
+            WHERE id = ?
+          `,
+          [req.params.id],
+        );
+
+        if (previousOfficer) {
+          await createUserNotification(
+            previousOfficer.id,
+            `You were removed as ${slotLabel} from borrower ${loan.borrower} (Loan #${loan.id}).`,
+          );
+
+          await createUserNotification(
+            currentUser.id,
+            `You removed ${previousOfficer.full_name} as ${slotLabel} from borrower ${loan.borrower} (Loan #${loan.id}).`,
+          );
+        } else {
+          await createUserNotification(
+            currentUser.id,
+            `You cleared the ${slotLabel} assignment for borrower ${loan.borrower} (Loan #${loan.id}).`,
+          );
+        }
+
+        const [updatedRows] =
+          await pool.query<LoanRow[]>(
+            `
+              SELECT *
+              FROM loans
+              WHERE id = ?
+              LIMIT 1
+            `,
+            [req.params.id],
+          );
+
+        res.json({
+          message:
+            "Loan Officer assignment removed successfully.",
+          loan: mapLoan(updatedRows[0]),
+        });
+
+        return;
+      }
+
+      const [officerRows] =
+        await pool.query<CurrentUserRow[]>(
+          `
+            SELECT
+              id,
+              full_name,
+              email,
+              role,
+              status
+            FROM users
+            WHERE id = ?
+              AND LOWER(role) = 'loan officer'
+              AND LOWER(status) IN (
+                'active',
+                'registered'
+              )
+            LIMIT 1
+          `,
+          [userId],
+        );
+
+      const officer = officerRows[0];
+
+      if (!officer) {
+        res.status(404).json({
+          message:
+            "The selected active Loan Officer was not found.",
+        });
+        return;
+      }
+
+      if (
+        currentAssignedName
+          ?.trim()
+          .toLowerCase() ===
+        officer.full_name
+          .trim()
+          .toLowerCase()
+      ) {
+        res.json({
+          message:
+            `${officer.full_name} is already assigned as ${slotLabel}.`,
+          loan: mapLoan(loan),
+        });
+
+        return;
+      }
+
+      const normalizedOfficerName =
+        officer.full_name
+          .trim()
+          .toLowerCase();
+
+      const otherAssignments = [
+        {
+          column: "primary_lo",
+          name: loan.primary_lo,
+        },
+        {
+          column: "lo2",
+          name: loan.lo2,
+        },
+        {
+          column: "lo3",
+          name: loan.lo3,
+        },
+      ].filter(
+        (assignment) =>
+          assignment.column !== column,
+      );
+
+      const alreadyAssigned =
+        otherAssignments.some(
+          (assignment) =>
+            assignment.name
+              ?.trim()
+              .toLowerCase() ===
+            normalizedOfficerName,
+        );
+
+      if (alreadyAssigned) {
+        res.status(409).json({
+          message:
+            "This Loan Officer is already assigned to another slot for this loan.",
+        });
+        return;
+      }
+
+      await pool.execute<ResultSetHeader>(
+        `
+          UPDATE loans
+          SET ${column} = ?
+          WHERE id = ?
+        `,
+        [
+          officer.full_name,
+          req.params.id,
+        ],
+      );
+
+      await createUserNotification(
+        officer.id,
+        `You were assigned as ${slotLabel} to borrower ${loan.borrower} (Loan #${loan.id}).`,
+      );
+
+      if (officer.email?.trim()) {
+        try {
+          await sendLoanAssignmentEmail({
+            recipientEmail: officer.email.trim(),
+            recipientName: officer.full_name,
+            assignmentRole: slotLabel,
+            borrower: loan.borrower,
+            loanId: loan.id,
+            loanStatus: loan.status,
+            property: loan.property,
+            state: loan.state,
+            loanAmount: loan.total_loan_amount,
+          });
+        } catch (emailError) {
+          console.error(
+            `Loan assignment email failed for ${officer.email}:`,
+            emailError,
+          );
+        }
+      } else {
+        console.warn(
+          `No email address found for Loan Officer ${officer.full_name}.`,
+        );
+      }
+
+      if (
+        previousOfficer &&
+        previousOfficer.id !== officer.id
+      ) {
+        await createUserNotification(
+          previousOfficer.id,
+          `You were reassigned off borrower ${loan.borrower} as ${slotLabel} (Loan #${loan.id}).`,
+        );
+
+        await createUserNotification(
+          currentUser.id,
+          `You reassigned ${slotLabel} from ${previousOfficer.full_name} to ${officer.full_name} for borrower ${loan.borrower} (Loan #${loan.id}).`,
+        );
+      } else {
+        await createUserNotification(
+          currentUser.id,
+          `You assigned ${officer.full_name} as ${slotLabel} to borrower ${loan.borrower} (Loan #${loan.id}).`,
+        );
+      }
+
+      const [updatedRows] =
+        await pool.query<LoanRow[]>(
+          `
+            SELECT *
+            FROM loans
+            WHERE id = ?
+            LIMIT 1
+          `,
+          [req.params.id],
+        );
+
+      res.json({
+        message:
+          `${officer.full_name} was assigned successfully.`,
+        loan: mapLoan(updatedRows[0]),
+      });
+    } catch (error) {
+      console.error(
+        "Assign loan officer error:",
+        error,
+      );
+
+      res.status(500).json({
+        message:
+          "Unable to assign the Loan Officer.",
+      });
+    }
+  },
+);
 
 // GET one loan
 router.get("/:id", async (req, res) => {
@@ -700,6 +1380,12 @@ router.put("/:id", async (req, res) => {
       );
     }
 
+    const changedFields =
+      getLoanDetailChanges(
+        existingLoan,
+        body,
+      );
+
     const validationError =
       validateRequiredFields(body, false);
 
@@ -844,6 +1530,15 @@ router.put("/:id", async (req, res) => {
         `,
         [loanId],
       );
+
+    if (changedFields.length > 0) {
+      const fieldSummary =
+        changedFields.join(", ");
+
+      await notifyLoanOperationsUsers(
+        `${currentUser.full_name} updated ${fieldSummary} for borrower ${existingLoan.borrower} (Loan #${existingLoan.id}).`,
+      );
+    }
 
     res.json(mapLoan(updatedRows[0]));
   } catch (error) {

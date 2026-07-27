@@ -145,6 +145,27 @@ type NotificationsResponse = {
 
 const API_URL = "http://localhost:5000/api";
 
+type LoanCountRecord = {
+  status: string;
+};
+
+type LoanCounts = {
+  active: number;
+  funded: number;
+  archived: number;
+};
+
+const ACTIVE_LOAN_STATUSES = [
+  "Loan Setup",
+  "Disclosed",
+  "Submitted to Underwriting",
+  "Approved w/ Conditions",
+  "Re-submittal",
+  "Clear to Close",
+  "Docs Out",
+  "Docs Signed",
+];
+
 function BrandMark() {
   return (
     <div className="flex items-center gap-3">
@@ -177,9 +198,11 @@ function BrandMark() {
 function SidebarNavigationLink({
   item,
   layoutId,
+  count,
 }: {
   item: NavigationItem;
   layoutId: string;
+  count?: number;
 }) {
   const Icon = item.icon;
 
@@ -208,11 +231,11 @@ function SidebarNavigationLink({
 
           <span>{item.label}</span>
 
-          {item.label === "Funded Loans" && (
-            <span className="ml-auto rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-300 ring-1 ring-amber-400/30">
-              539
-            </span>
-          )}
+          {typeof count === "number" && count > 0 && (
+       <span className="ml-auto min-w-[25px] rounded-full bg-amber-400/15 px-2 py-0.5 text-center text-[10px] font-bold text-amber-300 ring-1 ring-amber-400/30">
+        {count}
+      </span>
+      )}
         </>
       )}
     </NavLink>
@@ -248,6 +271,12 @@ export default function AppShell() {
 
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
 
+  const [loanCounts, setLoanCounts] = useState<LoanCounts>({
+    active: 0,
+    funded: 0,
+    archived: 0,
+  });
+
   const unreadCount = notifications.filter(
     (notification) => !notification.read,
   ).length;
@@ -262,6 +291,48 @@ export default function AppShell() {
         sub: "Update loan information and save the changes to the database.",
       }
     : (TITLES[location.pathname] ?? TITLES["/"]);
+
+  async function loadLoanCounts(): Promise<void> {
+    if (!user?.id) {
+      setLoanCounts({
+        active: 0,
+        funded: 0,
+        archived: 0,
+      });
+
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/loans`, {
+        headers: {
+          "x-user-id": String(user.id),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to load loan counts.");
+      }
+
+      const loans = (await response.json()) as LoanCountRecord[];
+
+      setLoanCounts({
+        active: loans.filter((loan) =>
+          ACTIVE_LOAN_STATUSES.includes(loan.status),
+        ).length,
+
+        funded: loans.filter(
+          (loan) => loan.status === "Loan Funded",
+        ).length,
+
+        archived: loans.filter(
+          (loan) => loan.status === "Closed",
+        ).length,
+      });
+    } catch (error) {
+      console.error("Load loan counts error:", error);
+    }
+  }
 
   async function loadNotifications(): Promise<void> {
     if (!user) {
@@ -288,9 +359,11 @@ export default function AppShell() {
 
   useEffect(() => {
     void loadNotifications();
+    void loadLoanCounts();
 
     const intervalId = window.setInterval(() => {
       void loadNotifications();
+      void loadLoanCounts();
     }, 15000);
 
     return () => {
@@ -458,13 +531,25 @@ export default function AppShell() {
                   className="overflow-hidden"
                 >
                   <nav className="space-y-1 border-t border-white/10 px-2 pb-2 pt-2">
-                    {visibleLoanNavigation.map((item) => (
-                      <SidebarNavigationLink
-                        key={item.to}
-                        item={item}
-                        layoutId="workspace-navigation-active"
-                      />
-                    ))}
+                    {visibleLoanNavigation.map((item) => {
+                      const count =
+                        item.to === "/active"
+                          ? loanCounts.active
+                          : item.to === "/funded"
+                            ? loanCounts.funded
+                            : item.to === "/archived"
+                              ? loanCounts.archived
+                              : undefined;
+
+                      return (
+                        <SidebarNavigationLink
+                          key={item.to}
+                          item={item}
+                          layoutId="workspace-navigation-active"
+                          count={count}
+                        />
+                      );
+                    })}
                   </nav>
                 </motion.div>
               )}

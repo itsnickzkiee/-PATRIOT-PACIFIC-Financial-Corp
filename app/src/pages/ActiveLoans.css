@@ -507,3 +507,982 @@
     padding: 15px 16px;
   }
 }
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.action-icon-button {
+  position: relative;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: #667085;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.action-icon-button:hover {
+  color: #a62151;
+  background: #fff1f5;
+  transform: translateY(-1px);
+}
+
+.action-icon-button:focus-visible {
+  outline: 2px solid rgba(166, 33, 81, 0.35);
+  outline-offset: 2px;
+}
+
+.action-icon-button.has-update::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #12b76a;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.loan-officer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.loan-officer-modal {
+  width: min(100%, 470px);
+  overflow: hidden;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.22);
+}
+
+.loan-officer-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.loan-officer-modal-header h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.loan-officer-modal-header p {
+  margin: 5px 0 0;
+  color: #667085;
+  font-size: 12px;
+}
+
+.loan-officer-modal-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #667085;
+  background: transparent;
+  cursor: pointer;
+}
+
+.loan-officer-modal-close:hover {
+  color: #a62151;
+  background: #fff1f5;
+}
+
+.loan-officer-modal-body {
+  padding: 20px;
+}
+
+.loan-officer-select-label {
+  display: grid;
+  gap: 8px;
+}
+
+.loan-officer-select-label > span {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.loan-officer-select-label select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  color: #344054;
+  background: #ffffff;
+  font-size: 13px;
+  outline: none;
+}
+
+.loan-officer-select-label select:focus {
+  border-color: #c43b68;
+  box-shadow: 0 0 0 4px rgba(166, 33, 81, 0.1);
+}
+
+.loan-officer-loading,
+.loan-officer-empty {
+  margin: 0;
+  padding: 16px;
+  border-radius: 10px;
+  color: #667085;
+  background: #f9fafb;
+  font-size: 12px;
+  text-align: center;
+}
+
+.loan-officer-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  color: #b42318;
+  background: #fef3f2;
+  font-size: 12px;
+}
+
+.loan-officer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid #f0f1f3;
+  background: #fcfcfd;
+}
+
+.loan-officer-modal-actions button {
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loan-officer-modal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.loan-officer-cancel {
+  border: 1px solid #d0d5dd;
+  color: #344054;
+  background: #ffffff;
+}
+
+.loan-officer-assign {
+  border: 1px solid #a62151;
+  color: #ffffff;
+  background: #a62151;
+}
+
+.loan-officer-assign:hover:not(:disabled) {
+  background: #86163f;
+}
+
+.loan-officer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(3px);
+}
+
+.loan-officer-modal {
+  width: min(100%, 520px);
+  overflow: hidden;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 28px 70px rgba(16, 24, 40, 0.26);
+  animation: loanOfficerModalIn 0.18s ease;
+}
+
+.loan-officer-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.loan-officer-modal-header h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.loan-officer-modal-header p {
+  margin: 5px 0 0;
+  color: #667085;
+  font-size: 12px;
+}
+
+.loan-officer-modal-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #667085;
+  background: transparent;
+  cursor: pointer;
+}
+
+.loan-officer-modal-close:hover {
+  color: #a62151;
+  background: #fff1f5;
+}
+
+.loan-officer-modal-body {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.loan-officer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.loan-officer-option {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid #eaecf0;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.loan-officer-option:hover {
+  border-color: #e7b6c8;
+  background: #fff9fb;
+  transform: translateY(-1px);
+}
+
+.loan-officer-option.selected {
+  border-color: #a62151;
+  background: #fff5f8;
+  box-shadow: 0 0 0 3px rgba(166, 33, 81, 0.08);
+}
+
+.loan-officer-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #a62151;
+}
+
+.loan-officer-avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  color: #a62151;
+  background: #fbeaf0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.loan-officer-details {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.loan-officer-details strong {
+  overflow: hidden;
+  color: #1d2939;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-officer-details small {
+  overflow: hidden;
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-officer-check {
+  color: transparent;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.loan-officer-option.selected
+  .loan-officer-check {
+  color: #a62151;
+}
+
+.loan-officer-loading,
+.loan-officer-empty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 10px;
+  color: #667085;
+  background: #f9fafb;
+  font-size: 12px;
+  text-align: center;
+}
+
+.loan-officer-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  color: #b42318;
+  background: #fef3f2;
+  font-size: 12px;
+}
+
+.loan-officer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid #f0f1f3;
+  background: #fcfcfd;
+}
+
+.loan-officer-modal-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loan-officer-modal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.loan-officer-cancel {
+  border: 1px solid #d0d5dd;
+  color: #344054;
+  background: #ffffff;
+}
+
+.loan-officer-assign {
+  border: 1px solid #a62151;
+  color: #ffffff;
+  background: #a62151;
+}
+
+.loan-officer-assign:hover:not(:disabled) {
+  background: #86163f;
+}
+
+@keyframes loanOfficerModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 560px) {
+  .loan-officer-modal {
+    width: 100%;
+  }
+
+  .loan-officer-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .loan-officer-modal-actions button {
+    width: 100%;
+  }
+}
+
+.loan-officer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(3px);
+}
+
+.loan-officer-modal {
+  width: min(100%, 520px);
+  overflow: hidden;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 28px 70px rgba(16, 24, 40, 0.26);
+  animation: loanOfficerModalIn 0.18s ease;
+}
+
+.loan-officer-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.loan-officer-modal-header h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.loan-officer-modal-header p {
+  margin: 5px 0 0;
+  color: #667085;
+  font-size: 12px;
+}
+
+.loan-officer-modal-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #667085;
+  background: transparent;
+  cursor: pointer;
+}
+
+.loan-officer-modal-close:hover {
+  color: #a62151;
+  background: #fff1f5;
+}
+
+.loan-officer-modal-body {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.loan-officer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.loan-officer-option {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid #eaecf0;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.loan-officer-option:hover {
+  border-color: #e7b6c8;
+  background: #fff9fb;
+  transform: translateY(-1px);
+}
+
+.loan-officer-option.selected {
+  border-color: #a62151;
+  background: #fff5f8;
+  box-shadow: 0 0 0 3px rgba(166, 33, 81, 0.08);
+}
+
+.loan-officer-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #a62151;
+}
+
+.loan-officer-avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  color: #a62151;
+  background: #fbeaf0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.loan-officer-details {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.loan-officer-details strong {
+  overflow: hidden;
+  color: #1d2939;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-officer-details small {
+  overflow: hidden;
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-officer-check {
+  color: transparent;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.loan-officer-option.selected
+  .loan-officer-check {
+  color: #a62151;
+}
+
+.loan-officer-loading,
+.loan-officer-empty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 10px;
+  color: #667085;
+  background: #f9fafb;
+  font-size: 12px;
+  text-align: center;
+}
+
+.loan-officer-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  color: #b42318;
+  background: #fef3f2;
+  font-size: 12px;
+}
+
+.loan-officer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid #f0f1f3;
+  background: #fcfcfd;
+}
+
+.loan-officer-modal-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loan-officer-modal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.loan-officer-cancel {
+  border: 1px solid #d0d5dd;
+  color: #344054;
+  background: #ffffff;
+}
+
+.loan-officer-assign {
+  border: 1px solid #a62151;
+  color: #ffffff;
+  background: #a62151;
+}
+
+.loan-officer-assign:hover:not(:disabled) {
+  background: #86163f;
+}
+
+@keyframes loanOfficerModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 560px) {
+  .loan-officer-modal {
+    width: 100%;
+  }
+
+  .loan-officer-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .loan-officer-modal-actions button {
+    width: 100%;
+  }
+}
+
+.loan-officer-cell {
+  display: flex;
+  min-width: 92px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.assigned-lo-name {
+  max-width: 115px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  color: #344054;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.assigned-lo-name:hover {
+  color: #a62151;
+  text-decoration: underline;
+}
+
+.add-lo-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px dashed #d0d5dd;
+  border-radius: 50%;
+  color: #667085;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.add-lo-button:hover {
+  border-color: #a62151;
+  color: #a62151;
+  background: #fff5f8;
+}
+
+.loan-officer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+.loan-officer-modal {
+  width: min(100%, 520px);
+  overflow: hidden;
+  border: 1px solid #eaecf0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 28px 70px rgba(16, 24, 40, 0.25);
+}
+
+.loan-officer-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.loan-officer-modal-header h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 18px;
+}
+
+.loan-officer-modal-header p {
+  margin: 5px 0 0;
+  color: #667085;
+  font-size: 12px;
+}
+
+.loan-officer-modal-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #667085;
+  background: transparent;
+  cursor: pointer;
+}
+
+.loan-officer-modal-close:hover {
+  color: #a62151;
+  background: #fff1f5;
+}
+
+.loan-officer-modal-body {
+  max-height: 440px;
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.loan-officer-search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-bottom: 12px;
+  background: #ffffff;
+}
+
+.loan-officer-search input {
+  width: 100%;
+  height: 42px;
+  padding: 0 13px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  outline: none;
+  color: #101828;
+  background: #ffffff;
+}
+
+.loan-officer-search input:focus {
+  border-color: #a62151;
+  box-shadow: 0 0 0 3px rgba(166, 33, 81, 0.1);
+}
+
+.loan-officer-list {
+  display: grid;
+  gap: 9px;
+}
+
+.loan-officer-option {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid #eaecf0;
+  border-radius: 11px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.loan-officer-option:hover {
+  border-color: #e5a8bd;
+  background: #fff9fb;
+}
+
+.loan-officer-option.selected {
+  border-color: #a62151;
+  background: #fff5f8;
+  box-shadow: 0 0 0 3px rgba(166, 33, 81, 0.08);
+}
+
+.loan-officer-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #a62151;
+}
+
+.loan-officer-avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  color: #a62151;
+  background: #fbeaf0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.loan-officer-details {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.loan-officer-details strong {
+  overflow: hidden;
+  color: #1d2939;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-officer-details small {
+  overflow: hidden;
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-officer-check {
+  color: transparent;
+  font-weight: 800;
+}
+
+.loan-officer-option.selected .loan-officer-check {
+  color: #a62151;
+}
+
+.loan-officer-loading,
+.loan-officer-empty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 10px;
+  color: #667085;
+  background: #f9fafb;
+  font-size: 12px;
+  text-align: center;
+}
+
+.loan-officer-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  color: #b42318;
+  background: #fef3f2;
+  font-size: 12px;
+}
+
+.loan-officer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid #eaecf0;
+  background: #fcfcfd;
+}
+
+.loan-officer-modal-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loan-officer-modal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.loan-officer-cancel {
+  border: 1px solid #d0d5dd;
+  color: #344054;
+  background: #ffffff;
+}
+
+.loan-officer-assign {
+  border: 1px solid #a62151;
+  color: #ffffff;
+  background: #a62151;
+}
+
+.loan-officer-assign:hover:not(:disabled) {
+  background: #86163f;
+}
+
+@media (max-width: 560px) {
+  .loan-officer-modal {
+    width: 100%;
+  }
+
+  .loan-officer-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .loan-officer-modal-actions button {
+    width: 100%;
+  }
+}
+
+.current-assignment {
+  margin-top: 8px !important;
+}
+
+.loan-officer-remove {
+  margin-right: auto;
+  border: 1px solid #fda29b;
+  color: #b42318;
+  background: #fff5f4;
+}
+
+.loan-officer-remove:hover:not(:disabled) {
+  border-color: #f04438;
+  background: #fee4e2;
+}

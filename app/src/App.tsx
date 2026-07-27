@@ -10,6 +10,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AppShell from "./components/AppShell";
 
 import Login from "./pages/Login";
+import ChangePassword from "./pages/ChangePassword";
 import Dashboard from "./pages/Dashboard";
 import ActiveLoans from "./pages/ActiveLoans";
 import FundedLoans from "./pages/FundedLoans";
@@ -28,6 +29,16 @@ export default function App() {
         <Route
           path="/login"
           element={<Login />}
+        />
+
+        {/* Change temporary password */}
+        <Route
+          path="/change-password"
+          element={
+            <ProtectedRoute>
+              <ChangePassword />
+            </ProtectedRoute>
+          }
         />
 
         {/* Protected system pages */}

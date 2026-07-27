@@ -19,9 +19,11 @@ import {
   UserX,
   Lock,
   Bell,
+  BellOff,
   Trash2,
   X,
   KeyRound,
+  UserRound,
 } from "lucide-react";
 
 import { useWorkspace } from "../state/workspace";
@@ -52,6 +54,7 @@ type UserRecord = {
   dateAdded: string;
   lastActive: string;
   online: boolean;
+  notificationsEnabled: boolean;
 };
 
 type UsersResponse = {
@@ -63,6 +66,7 @@ type UsersResponse = {
     status: Tab;
     dateAdded: string | null;
     lastActive: string | null;
+    notificationsEnabled: boolean;
   }>;
 
   message?: string;
@@ -84,6 +88,28 @@ type CreateUserResponse = {
   };
 };
 
+type UpdateUserResponse = {
+  message?: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: UserRole;
+    status: Tab;
+    dateAdded: string | null;
+    lastActive: string | null;
+  };
+};
+
+type ResetPasswordResponse = {
+  message?: string;
+};
+
+type NotificationToggleResponse = {
+  message?: string;
+  notificationsEnabled?: boolean;
+};
+
 const API_URL =
   "http://localhost:5000/api";
 
@@ -91,19 +117,19 @@ const TABS: {
   key: Tab;
   icon: React.ElementType;
 }[] = [
-  {
-    key: "Registered",
-    icon: ShieldCheck,
-  },
-  {
-    key: "Pending",
-    icon: MailCheck,
-  },
-  {
-    key: "Deactivated",
-    icon: UserX,
-  },
-];
+    {
+      key: "Registered",
+      icon: ShieldCheck,
+    },
+    {
+      key: "Pending",
+      icon: MailCheck,
+    },
+    {
+      key: "Deactivated",
+      icon: UserX,
+    },
+  ];
 
 const ROLES = [
   "All roles",
@@ -161,9 +187,8 @@ function formatLastActive(
   }
 
   if (minutes < 60) {
-    return `${minutes} minute${
-      minutes === 1 ? "" : "s"
-    } ago`;
+    return `${minutes} minute${minutes === 1 ? "" : "s"
+      } ago`;
   }
 
   const hours = Math.floor(
@@ -171,18 +196,16 @@ function formatLastActive(
   );
 
   if (hours < 24) {
-    return `${hours} hour${
-      hours === 1 ? "" : "s"
-    } ago`;
+    return `${hours} hour${hours === 1 ? "" : "s"
+      } ago`;
   }
 
   const days = Math.floor(
     hours / 24,
   );
 
-  return `${days} day${
-    days === 1 ? "" : "s"
-  } ago`;
+  return `${days} day${days === 1 ? "" : "s"
+    } ago`;
 }
 
 export default function Users() {
@@ -221,6 +244,34 @@ export default function Users() {
     role: "Loan Officer",
   });
 
+  const [editOpen, setEditOpen] =
+    useState(false);
+
+  const [editingUser, setEditingUser] =
+    useState<UserRecord | null>(null);
+
+  const [editForm, setEditForm] =
+    useState<{
+      name: string;
+      email: string;
+      role: UserRole;
+    }>({
+      name: "",
+      email: "",
+      role: "Loan Officer",
+    });
+
+  const [isUpdating, setIsUpdating] =
+    useState(false);
+
+  const [resettingUserId, setResettingUserId] =
+    useState<number | null>(null);
+
+  const [
+    togglingNotificationUserId,
+    setTogglingNotificationUserId,
+  ] = useState<number | null>(null);
+
   async function loadUsers(): Promise<void> {
     try {
       setIsLoadingUsers(true);
@@ -235,7 +286,7 @@ export default function Users() {
       if (!response.ok) {
         throw new Error(
           data.message ??
-            "Unable to load users.",
+          "Unable to load users.",
         );
       }
 
@@ -260,6 +311,8 @@ export default function Users() {
             formatLastActive(
               user.lastActive,
             ) === "Just now",
+          notificationsEnabled:
+            user.notificationsEnabled !== false,
         }));
 
       setUsers(formattedUsers);
@@ -416,7 +469,7 @@ export default function Users() {
       ) {
         pushToast(
           data.message ??
-            "Unable to create user.",
+          "Unable to create user.",
         );
 
         return;
@@ -457,6 +510,224 @@ export default function Users() {
     }
   };
 
+  const closeEditModal = () => {
+    if (isUpdating) {
+      return;
+    }
+
+    setEditOpen(false);
+    setEditingUser(null);
+  };
+
+  const submitEdit = async () => {
+    if (!editingUser) {
+      return;
+    }
+
+    const name = editForm.name.trim();
+    const email = editForm.email
+      .trim()
+      .toLowerCase();
+
+    if (!name || !email) {
+      pushToast(
+        "Full name and email are required.",
+      );
+      return;
+    }
+
+    const emailPattern =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(email)) {
+      pushToast(
+        "Please enter a valid email address.",
+      );
+      return;
+    }
+
+    const hasChanges =
+      name !== editingUser.name ||
+      email !== editingUser.email.toLowerCase() ||
+      editForm.role !== editingUser.role;
+
+    if (!hasChanges) {
+      pushToast("No profile changes to save.");
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+
+      const response = await fetch(
+        `${API_URL}/users/${editingUser.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            role: editForm.role,
+          }),
+        },
+      );
+
+      const data =
+        (await response.json()) as UpdateUserResponse;
+
+      if (!response.ok || !data.user) {
+        pushToast(
+          data.message ?? "Unable to update user.",
+        );
+        return;
+      }
+
+      await loadUsers();
+      setEditOpen(false);
+      setEditingUser(null);
+      pushToast(
+        data.message ??
+          "User profile updated successfully.",
+      );
+    } catch (error) {
+      console.error("Update user error:", error);
+      pushToast(
+        "Cannot connect to the backend server.",
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const resetUserPassword = async (
+    user: UserRecord,
+  ) => {
+    const confirmed = window.confirm(
+      `Reset ${user.name}'s password and send a new temporary password to ${user.email}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setResettingUserId(user.id);
+
+      const response = await fetch(
+        `${API_URL}/users/${user.id}/reset-password`,
+        {
+          method: "POST",
+        },
+      );
+
+      const data =
+        (await response.json()) as ResetPasswordResponse;
+
+      if (!response.ok) {
+        pushToast(
+          data.message ??
+            "Unable to reset the password.",
+        );
+
+        return;
+      }
+
+      pushToast(
+        data.message ??
+          "Temporary password sent successfully.",
+      );
+    } catch (error) {
+      console.error(
+        "Reset password error:",
+        error,
+      );
+
+      pushToast(
+        "Cannot connect to the backend server.",
+      );
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
+  const toggleUserNotifications = async (
+    user: UserRecord,
+  ) => {
+    const nextEnabled =
+      !user.notificationsEnabled;
+
+    try {
+      setTogglingNotificationUserId(
+        user.id,
+      );
+
+      const response = await fetch(
+        `${API_URL}/users/${user.id}/notifications`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            enabled: nextEnabled,
+          }),
+        },
+      );
+
+      const data =
+        (await response.json()) as NotificationToggleResponse;
+
+      if (!response.ok) {
+        pushToast(
+          data.message ??
+            "Unable to update notification settings.",
+        );
+
+        return;
+      }
+
+      setUsers((currentUsers) =>
+        currentUsers.map((currentUser) =>
+          currentUser.id === user.id
+            ? {
+                ...currentUser,
+                notificationsEnabled:
+                  data.notificationsEnabled ??
+                  nextEnabled,
+              }
+            : currentUser,
+        ),
+      );
+
+      pushToast(
+        data.message ??
+          `Notifications ${
+            nextEnabled
+              ? "enabled"
+              : "disabled"
+          } for ${user.name}.`,
+      );
+    } catch (error) {
+      console.error(
+        "Toggle notifications error:",
+        error,
+      );
+
+      pushToast(
+        "Cannot connect to the backend server.",
+      );
+    } finally {
+      setTogglingNotificationUserId(
+        null,
+      );
+    }
+  };
+
   const setUserStatus = (
     id: number,
     status: Tab,
@@ -465,9 +736,9 @@ export default function Users() {
       currentUsers.map((user) =>
         user.id === id
           ? {
-              ...user,
-              status,
-            }
+            ...user,
+            status,
+          }
           : user,
       ),
     );
@@ -531,22 +802,20 @@ export default function Users() {
                     new Set(),
                   );
                 }}
-                className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                  tab === key
-                    ? "bg-rose-700 text-white shadow-sm"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${tab === key
+                  ? "bg-rose-700 text-white shadow-sm"
+                  : "text-muted-foreground hover:bg-muted"
+                  }`}
               >
                 <Icon className="h-3.5 w-3.5" />
 
                 {key}
 
                 <span
-                  className={`rounded-full px-1.5 text-[10px] ${
-                    tab === key
-                      ? "bg-white/20"
-                      : "bg-muted"
-                  }`}
+                  className={`rounded-full px-1.5 text-[10px] ${tab === key
+                    ? "bg-white/20"
+                    : "bg-muted"
+                    }`}
                 >
                   {counts[key]}
                 </span>
@@ -710,7 +979,7 @@ export default function Users() {
                   type="checkbox"
                   checked={
                     filtered.length >
-                      0 &&
+                    0 &&
                     filtered.every(
                       (user) =>
                         selected.has(
@@ -725,13 +994,13 @@ export default function Users() {
                       event.target
                         .checked
                         ? new Set(
-                            filtered.map(
-                              (
-                                user,
-                              ) =>
-                                user.id,
-                            ),
-                          )
+                          filtered.map(
+                            (
+                              user,
+                            ) =>
+                              user.id,
+                          ),
+                        )
                         : new Set(),
                     )
                   }
@@ -783,13 +1052,12 @@ export default function Users() {
                     exit={{
                       opacity: 0,
                     }}
-                    className={`row-hover border-b border-border/70 last:border-0 ${
-                      selected.has(
-                        user.id,
-                      )
-                        ? "bg-rose-50/50"
-                        : ""
-                    }`}
+                    className={`row-hover border-b border-border/70 last:border-0 ${selected.has(
+                      user.id,
+                    )
+                      ? "bg-rose-50/50"
+                      : ""
+                      }`}
                   >
                     <td className="px-5 py-3">
                       <input
@@ -836,21 +1104,20 @@ export default function Users() {
 
                     <td className="px-3 py-3">
                       <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${
-                          user.role ===
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${user.role ===
                           "Admin"
-                            ? "bg-violet-50 text-violet-700 ring-violet-100"
+                          ? "bg-violet-50 text-violet-700 ring-violet-100"
+                          : user.role ===
+                            "Processor"
+                            ? "bg-sky-50 text-sky-700 ring-sky-100"
                             : user.role ===
-                                "Processor"
-                              ? "bg-sky-50 text-sky-700 ring-sky-100"
+                              "Accounting"
+                              ? "bg-amber-50 text-amber-700 ring-amber-100"
                               : user.role ===
-                                  "Accounting"
-                                ? "bg-amber-50 text-amber-700 ring-amber-100"
-                                : user.role ===
-                                    "Super Admin"
-                                  ? "bg-rose-50 text-rose-700 ring-rose-100"
-                                  : "bg-stone-100 text-stone-600 ring-stone-200"
-                        }`}
+                                "Super Admin"
+                                ? "bg-rose-50 text-rose-700 ring-rose-100"
+                                : "bg-stone-100 text-stone-600 ring-stone-200"
+                          }`}
                       >
                         {user.role}
                       </span>
@@ -864,7 +1131,7 @@ export default function Users() {
 
                     <td className="px-3 py-3">
                       {user.lastActive ===
-                      "Just now" ? (
+                        "Just now" ? (
                         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
                           <span className="animate-pulse-dot h-1.5 w-1.5 rounded-full bg-emerald-500" />
 
@@ -883,29 +1150,45 @@ export default function Users() {
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-center gap-0.5">
                         <ActionBtn
-                          title="Edit profile"
-                          onClick={() =>
-                            pushToast(
-                              `Editing ${user.name}`,
-                            )
-                          }
+                          title="Edit Profile"
+                          onClick={() => {
+                            setEditingUser(user);
+                            setEditForm({
+                              name: user.name,
+                              email: user.email,
+                              role: user.role,
+                            });
+                            setEditOpen(true);
+                          }}
                         >
-                          <KeyRound className="h-4 w-4" />
+                          <UserRound className="h-4 w-4 text-sky-600" />
                         </ActionBtn>
 
                         <ActionBtn
-                          title="Notification settings"
+                          title={
+                            user.notificationsEnabled
+                              ? "Disable notifications"
+                              : "Enable notifications"
+                          }
                           onClick={() =>
-                            pushToast(
-                              `Notification prefs for ${user.name}`,
+                            void toggleUserNotifications(
+                              user,
                             )
                           }
+                          disabled={
+                            togglingNotificationUserId ===
+                            user.id
+                          }
                         >
-                          <Bell className="h-4 w-4" />
+                          {user.notificationsEnabled ? (
+                            <Bell className="h-4 w-4 text-emerald-600" />
+                          ) : (
+                            <BellOff className="h-4 w-4 text-rose-500" />
+                          )}
                         </ActionBtn>
 
                         {user.status ===
-                        "Deactivated" ? (
+                          "Deactivated" ? (
                           <ActionBtn
                             title="Reactivate"
                             onClick={() => {
@@ -940,14 +1223,22 @@ export default function Users() {
                         )}
 
                         <ActionBtn
-                          title="Reset password"
+                          title={
+                            resettingUserId === user.id
+                              ? "Sending temporary password..."
+                              : "Reset Password"
+                          }
                           onClick={() =>
-                            pushToast(
-                              `Password reset sent to ${user.email}`,
+                            void resetUserPassword(
+                              user,
                             )
                           }
+                          disabled={
+                            resettingUserId ===
+                            user.id
+                          }
                         >
-                          <MailCheck className="h-4 w-4" />
+                          <KeyRound className="h-4 w-4 text-violet-600" />
                         </ActionBtn>
 
                         <ActionBtn
@@ -1059,148 +1350,308 @@ export default function Users() {
                 }}
                 className="pointer-events-auto card-shadow-lg max-h-[85vh] w-[min(480px,92vw)] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/10"
               >
-              <div className="mb-5 flex items-start justify-between">
-                <div>
-                  <h3 className="font-display text-lg font-bold">
-                    Create User
-                    Account
-                  </h3>
+                <div className="mb-5 flex items-start justify-between">
+                  <div>
+                    <h3 className="font-display text-lg font-bold">
+                      Create User
+                      Account
+                    </h3>
 
-                  <p className="text-sm text-muted-foreground">
-                    A temporary password
-                    will be generated and
-                    sent to their company
-                    email.
-                  </p>
+                    <p className="text-sm text-muted-foreground">
+                      A temporary password
+                      will be generated and
+                      sent to their company
+                      email.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setAddOpen(false)
+                    }
+                    className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
 
-                <button
-                  onClick={() =>
-                    setAddOpen(false)
-                  }
-                  className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
+                  Admin access only. Choose
+                  the correct role before
+                  creating the account.
+                </div>
 
-              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
-                Admin access only. Choose
-                the correct role before
-                creating the account.
-              </div>
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Full name
+                    </span>
 
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Full name
-                  </span>
+                    <input
+                      value={form.name}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          name: event
+                            .target.value,
+                        })
+                      }
+                      placeholder="e.g. Jordan Lee"
+                      className="h-10 w-full rounded-xl border border-input bg-stone-50/60 px-3 text-sm outline-none focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10"
+                    />
+                  </label>
 
-                  <input
-                    value={form.name}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        name: event
-                          .target.value,
-                      })
-                    }
-                    placeholder="e.g. Jordan Lee"
-                    className="h-10 w-full rounded-xl border border-input bg-stone-50/60 px-3 text-sm outline-none focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10"
-                  />
-                </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Email
+                    </span>
 
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Email
-                  </span>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          email:
+                            event.target
+                              .value,
+                        })
+                      }
+                      placeholder="name@patriotpacific.com"
+                      className="h-10 w-full rounded-xl border border-input bg-stone-50/60 px-3 text-sm outline-none focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10"
+                    />
+                  </label>
 
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        email:
-                          event.target
-                            .value,
-                      })
-                    }
-                    placeholder="name@patriotpacific.com"
-                    className="h-10 w-full rounded-xl border border-input bg-stone-50/60 px-3 text-sm outline-none focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10"
-                  />
-                </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Role
+                    </span>
 
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Role
-                  </span>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      "Loan Officer",
-                      "Admin",
-                      "Processor",
-                      "Accounting",
-                    ].map(
-                      (roleOption) => (
-                        <button
-                          type="button"
-                          key={
-                            roleOption
-                          }
-                          onClick={() =>
-                            setForm({
-                              ...form,
-                              role: roleOption,
-                            })
-                          }
-                          className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
-                            form.role ===
-                            roleOption
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        "Loan Officer",
+                        "Admin",
+                        "Processor",
+                        "Accounting",
+                      ].map(
+                        (roleOption) => (
+                          <button
+                            type="button"
+                            key={
+                              roleOption
+                            }
+                            onClick={() =>
+                              setForm({
+                                ...form,
+                                role: roleOption,
+                              })
+                            }
+                            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${form.role ===
+                              roleOption
                               ? "border-rose-500 bg-rose-50 text-rose-700 ring-2 ring-rose-500/20"
                               : "border-input bg-white text-muted-foreground hover:border-stone-300"
-                          }`}
-                        >
-                          {
-                            roleOption
-                          }
-                        </button>
-                      ),
-                    )}
+                              }`}
+                          >
+                            {
+                              roleOption
+                            }
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </label>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAddOpen(false)
+                    }
+                    disabled={isCreating}
+                    className="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void submitAdd()
+                    }
+                    disabled={
+                      !form.name.trim() ||
+                      !form.email.trim() ||
+                      isCreating
+                    }
+                    className="rounded-full bg-gradient-to-r from-rose-700 to-rose-600 px-5 py-2 text-sm font-bold text-white shadow-md shadow-rose-700/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isCreating
+                      ? "Creating..."
+                      : "Create User"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Edit User modal */}
+      <AnimatePresence>
+        {editOpen && editingUser && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeEditModal}
+              className="fixed inset-0 z-40 bg-[#1c050d]/55 backdrop-blur-sm"
+            />
+
+            <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center p-4">
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.96 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="pointer-events-auto card-shadow-lg max-h-[90vh] w-[min(520px,94vw)] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/10"
+              >
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`grid h-12 w-12 shrink-0 place-items-center rounded-full text-sm font-bold ${avatarPalette(
+                        editingUser.name,
+                      )}`}
+                    >
+                      {initialsOf(editingUser.name)}
+                    </div>
+
+                    <div>
+                      <h3 className="font-display text-lg font-bold">
+                        Edit User Profile
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Update the user's name, email address, or role.
+                      </p>
+                    </div>
                   </div>
-                </label>
-              </div>
 
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAddOpen(false)
-                  }
-                  disabled={isCreating}
-                  className="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Cancel
-                </button>
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    disabled={isUpdating}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    void submitAdd()
-                  }
-                  disabled={
-                    !form.name.trim() ||
-                    !form.email.trim() ||
-                    isCreating
-                  }
-                  className="rounded-full bg-gradient-to-r from-rose-700 to-rose-600 px-5 py-2 text-sm font-bold text-white shadow-md shadow-rose-700/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isCreating
-                    ? "Creating..."
-                    : "Create User"}
-                </button>
-              </div>
+                <div className="mb-5 grid grid-cols-2 gap-3 rounded-xl border border-border bg-stone-50/70 p-4 text-xs">
+                  <div>
+                    <p className="font-bold uppercase tracking-wider text-muted-foreground">User ID</p>
+                    <p className="mt-1 font-semibold text-foreground">#{editingUser.id}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wider text-muted-foreground">Status</p>
+                    <p className="mt-1 font-semibold text-foreground">{editingUser.status}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wider text-muted-foreground">Date Added</p>
+                    <p className="mt-1 font-semibold text-foreground">{editingUser.dateAdded}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold uppercase tracking-wider text-muted-foreground">Last Active</p>
+                    <p className="mt-1 font-semibold text-foreground">{editingUser.lastActive}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Full name
+                    </span>
+                    <input
+                      value={editForm.name}
+                      onChange={(event) =>
+                        setEditForm({ ...editForm, name: event.target.value })
+                      }
+                      placeholder="Enter full name"
+                      disabled={isUpdating}
+                      className="h-10 w-full rounded-xl border border-input bg-stone-50/60 px-3 text-sm outline-none transition focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Email address
+                    </span>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(event) =>
+                        setEditForm({ ...editForm, email: event.target.value })
+                      }
+                      placeholder="name@patriotpacific.com"
+                      disabled={isUpdating}
+                      className="h-10 w-full rounded-xl border border-input bg-stone-50/60 px-3 text-sm outline-none transition focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    />
+                  </label>
+
+                  <div>
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Role
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {["Loan Officer", "Admin", "Processor", "Accounting"].map(
+                        (roleOption) => (
+                          <button
+                            type="button"
+                            key={roleOption}
+                            onClick={() =>
+                              setEditForm({
+                                ...editForm,
+                                role: roleOption as UserRole,
+                              })
+                            }
+                            disabled={isUpdating}
+                            className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                              editForm.role === roleOption
+                                ? "border-rose-500 bg-rose-50 text-rose-700 ring-2 ring-rose-500/20"
+                                : "border-input bg-white text-muted-foreground hover:border-stone-300"
+                            }`}
+                          >
+                            {roleOption}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    disabled={isUpdating}
+                    className="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void submitEdit()}
+                    disabled={
+                      !editForm.name.trim() ||
+                      !editForm.email.trim() ||
+                      isUpdating
+                    }
+                    className="rounded-full bg-gradient-to-r from-rose-700 to-rose-600 px-5 py-2 text-sm font-bold text-white shadow-md shadow-rose-700/25 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isUpdating ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
               </motion.div>
             </div>
           </>
@@ -1214,17 +1665,20 @@ function ActionBtn({
   children,
   title,
   onClick,
+  disabled = false,
 }: {
   children: React.ReactNode;
   title: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       title={title}
       onClick={onClick}
-      className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-rose-50 hover:text-rose-700"
+      disabled={disabled}
+      className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-45"
     >
       {children}
     </button>

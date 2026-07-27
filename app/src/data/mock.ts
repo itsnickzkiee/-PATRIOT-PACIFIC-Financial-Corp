@@ -1,4 +1,4 @@
-export type LoanStatus = "Loan Funded" | "Clear to Close" | "Docs Out" | "Submitted to Underwriting" | "Disclosed" | "Loan Setup" | "Docs Signed";
+export type LoanStatus = "Loan Funded" | "Clear to Close" | "Docs Out" | "Submitted to Underwriting" | "Disclosed" | "Loan Setup" | "Docs Signed" | "Closed";
 
 export interface Loan {
   id: string;

@@ -4,12 +4,15 @@ import {
 } from "react";
 
 import LoansTable from "../components/LoansTable";
+import { useAuth } from "@/state/AuthContext";
 import type { Loan } from "../data/mock";
 
 const API_URL =
   "http://localhost:5000/api";
 
 export default function ArchivedLoans() {
+  const { user } = useAuth();
+
   const [loans, setLoans] =
     useState<Loan[]>([]);
 
@@ -21,27 +24,41 @@ export default function ArchivedLoans() {
 
   useEffect(() => {
     async function loadLoans() {
+      if (!user?.id) {
+        setLoading(false);
+        setError(
+          "A logged-in user is required.",
+        );
+        return;
+      }
+
       try {
         setLoading(true);
         setError("");
 
         const response = await fetch(
           `${API_URL}/loans`,
+          {
+            headers: {
+              "x-user-id": String(
+                user.id,
+              ),
+            },
+          },
         );
+
+        const result =
+          await response.json();
 
         if (!response.ok) {
           throw new Error(
-            "Failed to load archived loans.",
+            result.message ||
+              "Failed to load archived loans.",
           );
         }
 
-        const data =
-          (await response.json()) as Loan[];
+        const data = result as Loan[];
 
-        /*
-          Archived Loans now uses the Closed status only.
-          The old calcCompleted/payrollProcessed condition is removed.
-        */
         setLoans(
           data.filter(
             (loan) =>
@@ -55,7 +72,9 @@ export default function ArchivedLoans() {
         );
 
         setError(
-          "Unable to load archived loans. Make sure the backend is running.",
+          error instanceof Error
+            ? error.message
+            : "Unable to load archived loans.",
         );
       } finally {
         setLoading(false);
@@ -74,7 +93,7 @@ export default function ArchivedLoans() {
         intervalId,
       );
     };
-  }, []);
+  }, [user?.id]);
 
   if (loading) {
     return (

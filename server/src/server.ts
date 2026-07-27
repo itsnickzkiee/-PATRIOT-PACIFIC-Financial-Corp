@@ -1,4 +1,6 @@
-import express from "express";
+import express, {
+  type Request,
+} from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
@@ -46,6 +48,7 @@ const allowedOrigins = [
   "http://localhost:3002",
   "http://localhost:3003",
   "http://localhost:5173",
+  "http://localhost:5000",
 ];
 
 app.use(
@@ -71,48 +74,84 @@ app.use(
 
 app.use(express.json());
 
+function getRequestUserId(
+  req: Request,
+): number | null {
+  const headerValue =
+    req.headers["x-user-id"];
+
+  const rawValue =
+    Array.isArray(headerValue)
+      ? headerValue[0]
+      : headerValue ??
+        req.query.userId ??
+        req.body?.currentUserId ??
+        req.body?.userId;
+
+  const userId = Number(rawValue);
+
+  return Number.isInteger(userId) &&
+    userId > 0
+    ? userId
+    : null;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Authentication Route
+|--------------------------------------------------------------------------
+*/
+
 app.use("/api/auth", authRoutes);
+
+/*
+|--------------------------------------------------------------------------
+| Old Working Routes — no JWT middleware
+|--------------------------------------------------------------------------
+*/
+
 app.use("/api/users", userRoutes);
 app.use("/api/loans", loanRoutes);
-app.use(
-  "/api/dashboard",
-  dashboardRoutes,
-);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/loan-files", loanFileRoutes);
+app.use("/api/loan-notes", loanNoteRoutes);
+
+/*
+|--------------------------------------------------------------------------
+| Notifications — old x-user-id setup
+|--------------------------------------------------------------------------
+*/
 
 app.get(
   "/api/notifications",
   async (req, res) => {
     try {
-      const userId = Number(
-        req.query.userId,
-      );
+      const userId = getRequestUserId(req);
 
-      if (
-        !Number.isInteger(userId) ||
-        userId <= 0
-      ) {
+      if (!userId) {
         res.status(400).json({
           message:
             "A valid user ID is required.",
         });
+
         return;
       }
 
       const [rows] =
         await pool.query(
           `
-            SELECT
-              id,
-              user_id,
-              message,
-              type,
-              is_read,
-              created_at
-            FROM notifications
-            WHERE user_id = ?
-               OR user_id IS NULL
-            ORDER BY created_at DESC
-            LIMIT 50
+          SELECT
+            id,
+            user_id,
+            message,
+            type,
+            is_read,
+            created_at
+          FROM notifications
+          WHERE user_id = ?
+             OR user_id IS NULL
+          ORDER BY created_at DESC
+          LIMIT 50
           `,
           [userId],
         );
@@ -154,27 +193,23 @@ app.patch(
   "/api/notifications/read-all",
   async (req, res) => {
     try {
-      const userId = Number(
-        req.body.userId,
-      );
+      const userId = getRequestUserId(req);
 
-      if (
-        !Number.isInteger(userId) ||
-        userId <= 0
-      ) {
+      if (!userId) {
         res.status(400).json({
           message:
             "A valid user ID is required.",
         });
+
         return;
       }
 
       await pool.query(
         `
-          UPDATE notifications
-          SET is_read = TRUE
-          WHERE user_id = ?
-             OR user_id IS NULL
+        UPDATE notifications
+        SET is_read = TRUE
+        WHERE user_id = ?
+           OR user_id IS NULL
         `,
         [userId],
       );
@@ -201,8 +236,18 @@ app.patch(
   "/api/notifications/:id/read",
   async (req, res) => {
     try {
+      const userId = getRequestUserId(req);
       const notificationId =
         Number(req.params.id);
+
+      if (!userId) {
+        res.status(400).json({
+          message:
+            "A valid user ID is required.",
+        });
+
+        return;
+      }
 
       if (
         !Number.isInteger(
@@ -214,17 +259,25 @@ app.patch(
           message:
             "Invalid notification ID.",
         });
+
         return;
       }
 
       const [result] =
         await pool.query(
           `
-            UPDATE notifications
-            SET is_read = TRUE
-            WHERE id = ?
+          UPDATE notifications
+          SET is_read = TRUE
+          WHERE id = ?
+            AND (
+              user_id = ?
+              OR user_id IS NULL
+            )
           `,
-          [notificationId],
+          [
+            notificationId,
+            userId,
+          ],
         );
 
       const updateResult =
@@ -239,6 +292,7 @@ app.patch(
           message:
             "Notification not found.",
         });
+
         return;
       }
 
@@ -291,17 +345,6 @@ app.get(
   },
 );
 
-
-app.use(
-  "/api/loan-files",
-  loanFileRoutes,
-);
-
-app.use(
-  "/api/loan-notes",
-  loanNoteRoutes,
-);
-
 async function executeWorkflow(): Promise<void> {
   try {
     await runLoanWorkflow();
@@ -326,10 +369,6 @@ async function startServer(): Promise<void> {
     await seedSuperAdmin();
     await verifyEmailConnection();
 
-    /*
-      Run once immediately so overdue loans are updated when the
-      backend starts.
-    */
     await executeWorkflow();
 
     app.listen(port, () => {
@@ -338,11 +377,6 @@ async function startServer(): Promise<void> {
       );
     });
 
-    /*
-      Then check again every hour by default.
-      For testing, add this to .env:
-      LOAN_WORKFLOW_INTERVAL_MS=60000
-    */
     setInterval(
       () => {
         void executeWorkflow();

@@ -6,6 +6,9 @@ import type {
 } from "mysql2";
 
 import pool from "../config/database.js";
+import {
+  createBroadcastNotification,
+} from "../../services/notificationService.js";
 
 const router = Router();
 
@@ -370,24 +373,10 @@ router.post(
         [loanId],
       );
 
-      await pool.query(
-        `
-          INSERT INTO notifications (
-            user_id,
-            message,
-            type,
-            is_read
-          )
-          VALUES (
-            NULL,
-            ?,
-            'note',
-            FALSE
-          )
-        `,
-        [
-          `${authorName} added a note to Loan #${loanId}.`,
-        ],
+      await createBroadcastNotification(
+        `${authorName} added a note to Loan #${loanId}.`,
+        "note",
+        userId,
       );
 
       res.status(201).json({

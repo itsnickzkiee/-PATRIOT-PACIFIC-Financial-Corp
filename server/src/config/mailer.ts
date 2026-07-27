@@ -26,12 +26,128 @@ const transporter =
     socketTimeout: 10000,
   });
 
-type SendTemporaryPasswordOptions = {
-  recipientName: string;
-  recipientEmail: string;
-  temporaryPassword: string;
-  role: string;
+const frontendUrl =
+  process.env.FRONTEND_URL ??
+  "http://localhost:3000";
+
+const senderName =
+  process.env.EMAIL_FROM_NAME ??
+  "Patriot Pacific Financial Corp.";
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+type EmailLayoutOptions = {
+  title: string;
+  greeting: string;
+  message: string;
+  details?: Array<{
+    label: string;
+    value: string;
+    highlight?: boolean;
+  }>;
+  buttonLabel?: string;
+  buttonUrl?: string;
+  securityNote?: string;
 };
+
+function emailLayout({
+  title,
+  greeting,
+  message,
+  details = [],
+  buttonLabel,
+  buttonUrl,
+  securityNote,
+}: EmailLayoutOptions): string {
+  const detailRows = details
+    .map(
+      ({ label, value, highlight }) => `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#806b72;">
+            ${escapeHtml(label)}
+          </div>
+          ${
+            highlight
+              ? `<div style="display:inline-block;margin-top:7px;padding:11px 15px;border-radius:9px;background:#710d25;color:#fff;font-size:18px;font-weight:800;letter-spacing:1px;">${escapeHtml(value)}</div>`
+              : `<div style="margin-top:5px;font-size:15px;font-weight:700;color:#30282b;word-break:break-word;">${escapeHtml(value)}</div>`
+          }
+        </div>
+      `,
+    )
+    .join("");
+
+  return `
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:#f6f3f4;font-family:Arial,sans-serif;color:#30282b;">
+        <div style="padding:32px 16px;">
+          <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 12px 34px rgba(76,13,29,.14);">
+            <div style="padding:30px;background:linear-gradient(135deg,#350711,#8c1230);color:#fff;">
+              <div style="font-size:25px;font-weight:800;">Patriot Pacific</div>
+              <div style="margin-top:5px;color:#f2dce3;">Financial Corp.</div>
+            </div>
+
+            <div style="padding:32px;">
+              <h1 style="margin:0 0 16px;color:#710d25;font-size:24px;">${escapeHtml(title)}</h1>
+              <p style="margin:0 0 12px;font-size:16px;line-height:1.6;">${escapeHtml(greeting)}</p>
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#5f5055;">${escapeHtml(message)}</p>
+
+              ${
+                detailRows
+                  ? `<div style="margin:25px 0;padding:21px;background:#fff8fa;border:1px solid #eadde1;border-radius:13px;">${detailRows}</div>`
+                  : ""
+              }
+
+              ${
+                buttonLabel && buttonUrl
+                  ? `<a href="${escapeHtml(buttonUrl)}" style="display:inline-block;padding:12px 23px;background:#8c1230;border-radius:10px;color:#fff;text-decoration:none;font-weight:800;">${escapeHtml(buttonLabel)}</a>`
+                  : ""
+              }
+
+              ${
+                securityNote
+                  ? `<div style="margin-top:24px;padding:14px 16px;border-left:4px solid #8c1230;background:#fbf3f5;color:#705d63;font-size:13px;line-height:1.6;">${escapeHtml(securityNote)}</div>`
+                  : ""
+              }
+            </div>
+
+            <div style="padding:18px 32px;background:#f8f5f6;color:#806b72;font-size:12px;line-height:1.6;">
+              This is an automated security message from Patriot Pacific Financial Corp.
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+async function deliverEmail(options: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}): Promise<void> {
+  if (!emailUser || !emailAppPassword) {
+    throw new Error(
+      "Email service credentials are not configured.",
+    );
+  }
+
+  await transporter.sendMail({
+    from: {
+      name: senderName,
+      address: emailUser,
+    },
+    ...options,
+  });
+}
 
 export async function verifyEmailConnection(): Promise<void> {
   if (!emailUser || !emailAppPassword) {
@@ -60,207 +176,201 @@ export async function verifyEmailConnection(): Promise<void> {
   }
 }
 
+type TemporaryPasswordReason =
+  | "account_created"
+  | "email_changed"
+  | "password_reset";
+
+type SendTemporaryPasswordOptions = {
+  recipientName: string;
+  recipientEmail: string;
+  temporaryPassword: string;
+  role: string;
+  reason?: TemporaryPasswordReason;
+};
+
 export async function sendTemporaryPasswordEmail({
   recipientName,
   recipientEmail,
   temporaryPassword,
   role,
+  reason = "account_created",
 }: SendTemporaryPasswordOptions): Promise<void> {
-  if (!emailUser || !emailAppPassword) {
-    throw new Error(
-      "Email service credentials are not configured.",
-    );
-  }
+  const title =
+    reason === "password_reset"
+      ? "Your Password Was Reset"
+      : reason === "email_changed"
+        ? "Your Login Email Was Updated"
+        : "Your Account Has Been Created";
 
-  const frontendUrl =
-    process.env.FRONTEND_URL ??
-    "http://localhost:3000";
+  const subject =
+    reason === "password_reset"
+      ? "Patriot Pacific â€“ Temporary Password"
+      : reason === "email_changed"
+        ? "Patriot Pacific â€“ New Email and Temporary Password"
+        : "Patriot Pacific â€“ Your Account Has Been Created";
 
-  const senderName =
-    process.env.EMAIL_FROM_NAME ??
-    "Patriot Pacific Financial Corp.";
+  const message =
+    reason === "password_reset"
+      ? "An administrator reset your password. Use the temporary password below to sign in."
+      : reason === "email_changed"
+        ? "Your account email was changed. A new temporary password was created for your security."
+        : "Your Patriot Pacific account was created successfully.";
 
-  try {
-    await transporter.sendMail({
-      from: {
-        name: senderName,
-        address: emailUser,
-      },
-
-      to: recipientEmail,
-
-      subject:
-        "Patriot Pacific – Your Account Has Been Created",
-
-      text: `
+  await deliverEmail({
+    to: recipientEmail,
+    subject,
+    text: `
 Hello ${recipientName},
 
-Your Patriot Pacific account has been created.
-
-Account details:
+${message}
 
 Email: ${recipientEmail}
 Role: ${role}
 Temporary Password: ${temporaryPassword}
 
-Login here:
-${frontendUrl}/login
+Login: ${frontendUrl}/login
 
-For your security, please change your temporary password after your first login.
+You must change this temporary password after signing in.
+    `.trim(),
+    html: emailLayout({
+      title,
+      greeting: `Hello ${recipientName},`,
+      message,
+      details: [
+        {
+          label: "Email",
+          value: recipientEmail,
+        },
+        {
+          label: "Role",
+          value: role,
+        },
+        {
+          label: "Temporary Password",
+          value: temporaryPassword,
+          highlight: true,
+        },
+      ],
+      buttonLabel: "Sign In",
+      buttonUrl: `${frontendUrl}/login`,
+      securityNote:
+        "For your security, you must create a new password after signing in. Do not share this temporary password.",
+    }),
+  });
 
-Regards,
-Patriot Pacific Financial Corp.
-      `.trim(),
+  console.log(
+    `Temporary password email sent to ${recipientEmail}.`,
+  );
+}
 
-      html: `
-        <div
-          style="
-            background:#f6f3f4;
-            padding:32px 16px;
-            font-family:Arial,sans-serif;
-            color:#30282b;
-          "
-        >
-          <div
-            style="
-              max-width:600px;
-              margin:0 auto;
-              background:#ffffff;
-              border-radius:16px;
-              overflow:hidden;
-              box-shadow:0 10px 30px rgba(76,13,29,0.12);
-            "
-          >
-            <div
-              style="
-                padding:28px;
-                background:linear-gradient(
-                  135deg,
-                  #350711,
-                  #8c1230
-                );
-                color:#ffffff;
-              "
-            >
-              <h1
-                style="
-                  margin:0;
-                  font-size:24px;
-                "
-              >
-                Patriot Pacific
-              </h1>
+export async function sendEmailChangedSecurityAlert(options: {
+  recipientName: string;
+  oldEmail: string;
+  newEmail: string;
+}): Promise<void> {
+  await deliverEmail({
+    to: options.oldEmail,
+    subject:
+      "Patriot Pacific â€“ Security Alert: Email Changed",
+    text: `
+Hello ${options.recipientName},
 
-              <p
-                style="
-                  margin:6px 0 0;
-                  color:#f2dce3;
-                "
-              >
-                Financial Corp.
-              </p>
-            </div>
+Your Patriot Pacific account email was changed.
 
-            <div style="padding:30px;">
-              <h2
-                style="
-                  margin-top:0;
-                  color:#710d25;
-                "
-              >
-                Welcome, ${recipientName}
-              </h2>
+Old email: ${options.oldEmail}
+New email: ${options.newEmail}
 
-              <p>
-                Your Patriot Pacific account has
-                been created successfully.
-              </p>
+If you did not expect this change, contact your administrator immediately.
+    `.trim(),
+    html: emailLayout({
+      title: "Security Alert: Email Changed",
+      greeting: `Hello ${options.recipientName},`,
+      message:
+        "The login email connected to your Patriot Pacific account was changed.",
+      details: [
+        {
+          label: "Previous Email",
+          value: options.oldEmail,
+        },
+        {
+          label: "New Email",
+          value: options.newEmail,
+        },
+      ],
+      securityNote:
+        "If you did not expect this change, contact your administrator immediately.",
+    }),
+  });
+}
 
-              <div
-                style="
-                  margin:24px 0;
-                  padding:20px;
-                  background:#fff8fa;
-                  border:1px solid #eadde1;
-                  border-radius:12px;
-                "
-              >
-                <p style="margin:0 0 12px;">
-                  <strong>Email:</strong><br />
-                  ${recipientEmail}
-                </p>
+export async function sendAccountUpdatedEmail(options: {
+  recipientName: string;
+  recipientEmail: string;
+  role: string;
+}): Promise<void> {
+  await deliverEmail({
+    to: options.recipientEmail,
+    subject:
+      "Patriot Pacific â€“ Account Information Updated",
+    text: `
+Hello ${options.recipientName},
 
-                <p style="margin:0 0 12px;">
-                  <strong>Role:</strong><br />
-                  ${role}
-                </p>
+Your Patriot Pacific account information was updated.
 
-                <p style="margin:0;">
-                  <strong>
-                    Temporary Password:
-                  </strong><br />
+Email: ${options.recipientEmail}
+Role: ${options.role}
+    `.trim(),
+    html: emailLayout({
+      title: "Account Information Updated",
+      greeting: `Hello ${options.recipientName},`,
+      message:
+        "An administrator updated your Patriot Pacific account information.",
+      details: [
+        {
+          label: "Email",
+          value: options.recipientEmail,
+        },
+        {
+          label: "Role",
+          value: options.role,
+        },
+      ],
+      buttonLabel: "Open Patriot Pacific",
+      buttonUrl: `${frontendUrl}/login`,
+      securityNote:
+        "Contact your administrator if you do not recognise this update.",
+    }),
+  });
+}
 
-                  <span
-                    style="
-                      display:inline-block;
-                      margin-top:6px;
-                      padding:10px 14px;
-                      background:#710d25;
-                      border-radius:8px;
-                      color:#ffffff;
-                      font-size:18px;
-                      font-weight:bold;
-                      letter-spacing:1px;
-                    "
-                  >
-                    ${temporaryPassword}
-                  </span>
-                </p>
-              </div>
+export interface SendMailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
 
-              <a
-                href="${frontendUrl}/login"
-                style="
-                  display:inline-block;
-                  padding:12px 22px;
-                  background:#8c1230;
-                  border-radius:10px;
-                  color:#ffffff;
-                  text-decoration:none;
-                  font-weight:bold;
-                "
-              >
-                Sign In
-              </a>
-
-              <p
-                style="
-                  margin-top:24px;
-                  color:#705d63;
-                  font-size:13px;
-                "
-              >
-                For your security, please change
-                your temporary password after your
-                first login.
-              </p>
-            </div>
-          </div>
-        </div>
-      `,
+export async function sendMail(
+  options: SendMailOptions,
+): Promise<boolean> {
+  try {
+    await deliverEmail({
+      to: options.to,
+      subject: options.subject,
+      text:
+        options.text ??
+        "Please view this email in an HTML-compatible email client.",
+      html: options.html,
     });
 
-    console.log(
-      `Temporary password email sent to ${recipientEmail}.`,
-    );
+    return true;
   } catch (error) {
     console.error(
-      "Unable to send temporary password email:",
+      "Failed to send email:",
       error,
     );
 
-    throw new Error(
-      "The account was created, but the temporary password email could not be sent.",
-    );
+    return false;
   }
 }

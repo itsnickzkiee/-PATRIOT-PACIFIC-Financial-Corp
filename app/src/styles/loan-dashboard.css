@@ -1,0 +1,747 @@
+.loan-dashboard {
+  display: grid;
+  gap: 22px;
+  color: #1d2939;
+}
+
+.dashboard-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.dashboard-eyebrow {
+  color: #a62151;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+.dashboard-heading h1 {
+  margin-top: 5px;
+  color: #101828;
+  font-size: 30px;
+  font-weight: 750;
+}
+
+.dashboard-heading p {
+  margin-top: 7px;
+  color: #667085;
+  font-size: 13px;
+}
+
+.dashboard-date {
+  padding: 11px 15px;
+  border: 1px solid #eaecf0;
+  border-radius: 10px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.dashboard-date span {
+  color: #98a2b3;
+  font-size: 10px;
+}
+
+.dashboard-date strong {
+  margin-top: 3px;
+  color: #344054;
+  font-size: 12px;
+}
+
+.loan-summary-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(240px, 1.3fr))
+    repeat(4, minmax(145px, 0.8fr));
+  gap: 14px;
+}
+
+.summary-card,
+.mini-summary-card,
+.dashboard-panel {
+  border: 1px solid #eaecf0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 7px 21px rgba(16, 24, 40, 0.05);
+}
+
+.summary-card {
+  min-height: 146px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.primary-summary {
+  border-top: 4px solid #a62151;
+}
+
+.funded-summary {
+  border-top: 4px solid #178c74;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.summary-icon {
+  width: 43px;
+  height: 43px;
+  border-radius: 11px;
+  color: #a62151;
+  background: #fbeaf0;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.funded-summary .summary-icon {
+  color: #178c74;
+  background: #e5f6f1;
+}
+
+.summary-header > div:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-header span,
+.mini-summary-card span {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.summary-header strong {
+  margin-top: 4px;
+  color: #101828;
+  font-size: 28px;
+}
+
+.summary-comparison {
+  padding-top: 14px;
+  border-top: 1px solid #f0f1f3;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.summary-comparison div {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-comparison div:last-child {
+  padding-left: 16px;
+  border-left: 1px solid #eaecf0;
+}
+
+.summary-comparison span {
+  color: #98a2b3;
+  font-size: 10px;
+}
+
+.summary-comparison strong {
+  margin-top: 3px;
+  color: #344054;
+  font-size: 18px;
+}
+
+.mini-summary-card {
+  min-height: 146px;
+  padding: 19px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mini-summary-card strong {
+  margin: 8px 0 6px;
+  color: #101828;
+  font-size: 25px;
+}
+
+.mini-summary-card small {
+  color: #98a2b3;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.warning-card {
+  border-top: 4px solid #f59e0b;
+}
+
+.commission-card {
+  border-top: 4px solid #7c3aed;
+}
+
+.dashboard-main-layout {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.1fr)
+    minmax(420px, 0.9fr);
+  gap: 18px;
+}
+
+.dashboard-panel {
+  overflow: hidden;
+}
+
+.panel-title {
+  min-height: 75px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #f0f1f3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-title h2 {
+  color: #101828;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.panel-title p {
+  margin-top: 4px;
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.loan-total-badge {
+  padding: 7px 10px;
+  border-radius: 99px;
+  color: #a62151;
+  background: #fbeaf0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pie-chart-layout {
+  min-height: 390px;
+  padding: 26px;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  align-items: center;
+  gap: 25px;
+}
+
+.pie-chart-container {
+  display: grid;
+  place-items: center;
+}
+
+.real-pie-chart {
+  width: 245px;
+  height: 245px;
+  border-radius: 50%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 15px 34px rgba(152, 27, 75, 0.16);
+  animation: pieChartEnter 0.8s ease;
+}
+
+.real-pie-chart::after {
+  content: "";
+  position: absolute;
+  width: 134px;
+  height: 134px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: inset 0 0 0 1px #f0f1f3;
+}
+
+.pie-chart-center {
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pie-chart-center strong {
+  color: #101828;
+  font-size: 29px;
+}
+
+.pie-chart-center span {
+  margin-top: 3px;
+  color: #98a2b3;
+  font-size: 10px;
+}
+
+.pie-information {
+  display: grid;
+  gap: 7px;
+}
+
+.pie-information-item {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  display: grid;
+  grid-template-columns: 11px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  transition: 0.2s ease;
+}
+
+.pie-information-item:hover,
+.pie-information-item.selected {
+  border-color: #f0d7e1;
+  background: #fff8fb;
+  transform: translateX(4px);
+}
+
+.stage-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.stage-description {
+  display: flex;
+  flex-direction: column;
+}
+
+.stage-description strong {
+  color: #344054;
+  font-size: 11px;
+}
+
+.stage-description small {
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 9px;
+}
+
+.stage-percentage {
+  color: #475467;
+  font-size: 11px;
+}
+
+.activity-chart {
+  min-height: 390px;
+  padding: 26px 20px 18px;
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 10px;
+}
+
+.activity-axis-labels {
+  height: 290px;
+  padding-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #98a2b3;
+  font-size: 9px;
+  text-align: right;
+}
+
+.activity-chart-area {
+  height: 290px;
+  position: relative;
+}
+
+.activity-grid-lines {
+  position: absolute;
+  inset: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.activity-grid-lines i {
+  width: 100%;
+  border-top: 1px dashed #e4e7ec;
+}
+
+.activity-bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.activity-bar-column {
+  height: 100%;
+  min-width: 34px;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.activity-bar {
+  width: 100%;
+  min-height: 10px;
+  border-radius: 7px 7px 2px 2px;
+  box-shadow: 0 8px 17px rgba(152, 27, 75, 0.14);
+  transform-origin: bottom;
+  animation: barChartEnter 0.75s ease;
+  transition: 0.2s ease;
+}
+
+.activity-bar-column:hover .activity-bar,
+.activity-bar-column:focus .activity-bar {
+  transform: translateY(-5px) scaleX(1.05);
+  filter: brightness(1.08);
+}
+
+.activity-bar-column small {
+  height: 20px;
+  color: #98a2b3;
+  font-size: 8px;
+  text-align: center;
+}
+
+.activity-tooltip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  min-width: 190px;
+  padding: 13px;
+  border-radius: 11px;
+  color: white;
+  background: rgba(51, 12, 33, 0.95);
+  box-shadow: 0 15px 35px rgba(51, 12, 33, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  animation: tooltipAppear 0.2s ease;
+}
+
+.activity-tooltip strong {
+  font-size: 12px;
+}
+
+.activity-tooltip span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 9px;
+}
+
+.loan-table-wrapper {
+  overflow-x: auto;
+}
+
+.loan-dashboard-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.loan-dashboard-table th {
+  padding: 13px 18px;
+  color: #667085;
+  background: #f9fafb;
+  font-size: 10px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.loan-dashboard-table td {
+  padding: 14px 18px;
+  border-top: 1px solid #f0f1f3;
+  color: #475467;
+  font-size: 11px;
+}
+
+.loan-dashboard-table td strong {
+  color: #1d2939;
+}
+
+.loan-status-badge {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+@keyframes pieChartEnter {
+  from {
+    opacity: 0;
+    transform: rotate(-40deg) scale(0.85);
+  }
+
+  to {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+@keyframes barChartEnter {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes tooltipAppear {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1300px) {
+  .loan-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dashboard-main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .loan-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pie-chart-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pie-information {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .dashboard-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .loan-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pie-information {
+    grid-template-columns: 1fr;
+  }
+
+  .real-pie-chart {
+    width: 215px;
+    height: 215px;
+  }
+
+  .activity-chart {
+    grid-template-columns: 52px 1fr;
+    padding-inline: 12px;
+  }
+}
+
+/*
+  IMPORTANT:
+  APPEND this entire file to the VERY BOTTOM of your existing:
+  src/styles/loan-dashboard.css
+
+  Do not replace/delete your original CSS.
+  This only overrides the six summary cards.
+*/
+
+.loan-summary-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1.25fr)
+    minmax(170px, 1.15fr)
+    minmax(135px, 0.85fr)
+    minmax(145px, 0.9fr)
+    minmax(150px, 0.95fr)
+    minmax(185px, 1.2fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #eaecf0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 7px 21px rgba(16, 24, 40, 0.05);
+}
+
+/* Make all six metrics part of one long box. */
+.loan-summary-grid .summary-card,
+.loan-summary-grid .mini-summary-card {
+  min-width: 0;
+  min-height: 128px;
+  margin: 0;
+  padding: 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Remove all old colored top strips. */
+.loan-summary-grid .primary-summary,
+.loan-summary-grid .funded-summary,
+.loan-summary-grid .warning-card,
+.loan-summary-grid .commission-card {
+  border-top: 0;
+}
+
+/* Remove any decorative pseudo-elements from older CSS. */
+.loan-summary-grid .summary-card::before,
+.loan-summary-grid .summary-card::after,
+.loan-summary-grid .mini-summary-card::before,
+.loan-summary-grid .mini-summary-card::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Low-opacity vertical line gap. */
+.loan-summary-grid > article:not(:last-child) {
+  border-right: 1px solid rgba(152, 162, 179, 0.22);
+}
+
+.loan-summary-grid .summary-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.loan-summary-grid .mini-summary-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.loan-summary-grid .summary-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.loan-summary-grid .summary-header {
+  gap: 11px;
+}
+
+.loan-summary-grid .summary-header span,
+.loan-summary-grid .mini-summary-card span {
+  font-size: 10px;
+}
+
+.loan-summary-grid .summary-header strong {
+  margin-top: 3px;
+  font-size: 24px;
+}
+
+.loan-summary-grid .summary-comparison {
+  padding-top: 10px;
+  border-top: 1px solid rgba(234, 236, 240, 0.7);
+}
+
+.loan-summary-grid .summary-comparison div:last-child {
+  border-left: 1px solid rgba(234, 236, 240, 0.7);
+}
+
+.loan-summary-grid .summary-comparison strong {
+  font-size: 15px;
+}
+
+.loan-summary-grid .mini-summary-card strong {
+  margin: 7px 0 5px;
+  font-size: 23px;
+}
+
+.loan-summary-grid .mini-summary-card small {
+  font-size: 9px;
+}
+
+.dashboard-data-error {
+  padding: 11px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b42318;
+  background: #fef3f2;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Keep the summary responsive without affecting charts below. */
+@media (max-width: 1300px) {
+  .loan-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .loan-summary-grid > article {
+    border-right: 1px solid rgba(152, 162, 179, 0.22);
+    border-bottom: 1px solid rgba(152, 162, 179, 0.22);
+  }
+
+  .loan-summary-grid > article:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .loan-summary-grid > article:nth-last-child(-n + 3) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .loan-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .loan-summary-grid > article,
+  .loan-summary-grid > article:nth-child(3n) {
+    border-right: 1px solid rgba(152, 162, 179, 0.22);
+    border-bottom: 1px solid rgba(152, 162, 179, 0.22);
+  }
+
+  .loan-summary-grid > article:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .loan-summary-grid > article:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 650px) {
+  .loan-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .loan-summary-grid > article,
+  .loan-summary-grid > article:nth-child(2n),
+  .loan-summary-grid > article:nth-child(3n) {
+    border-right: 0;
+    border-bottom: 1px solid rgba(152, 162, 179, 0.22);
+  }
+
+  .loan-summary-grid > article:last-child {
+    border-bottom: 0;
+  }
+}
