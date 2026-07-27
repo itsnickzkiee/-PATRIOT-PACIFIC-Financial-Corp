@@ -28,6 +28,7 @@ import {
 
 import { useWorkspace } from "../state/workspace";
 import { useAuth } from "@/state/AuthContext";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 import {
   avatarPalette,
@@ -110,6 +111,17 @@ type NotificationToggleResponse = {
   message?: string;
   notificationsEnabled?: boolean;
 };
+
+type ConfirmationState =
+  | {
+      type: "reset";
+      user: UserRecord;
+    }
+  | {
+      type: "delete";
+      user: UserRecord;
+    }
+  | null;
 
 const API_URL =
   `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
@@ -273,6 +285,9 @@ export default function Users() {
     togglingNotificationUserId,
     setTogglingNotificationUserId,
   ] = useState<number | null>(null);
+
+  const [confirmation, setConfirmation] =
+    useState<ConfirmationState>(null);
 
   async function loadUsers(): Promise<void> {
     try {
@@ -623,14 +638,6 @@ export default function Users() {
   const resetUserPassword = async (
     user: UserRecord,
   ) => {
-    const confirmed = window.confirm(
-      `Reset ${user.name}'s password and send a new temporary password to ${user.email}?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     try {
       setResettingUserId(user.id);
 
@@ -660,6 +667,8 @@ export default function Users() {
         data.message ??
           "Temporary password sent successfully.",
       );
+
+      setConfirmation(null);
     } catch (error) {
       console.error(
         "Reset password error:",
@@ -1252,9 +1261,10 @@ export default function Users() {
                               : "Reset Password"
                           }
                           onClick={() =>
-                            void resetUserPassword(
+                            setConfirmation({
+                              type: "reset",
                               user,
-                            )
+                            })
                           }
                           disabled={
                             resettingUserId ===
@@ -1266,15 +1276,12 @@ export default function Users() {
 
                         <ActionBtn
                           title="Delete"
-                          onClick={() => {
-                            deleteUser(
-                              user.id,
-                            );
-
-                            pushToast(
-                              `${user.name} removed`,
-                            );
-                          }}
+                          onClick={() =>
+                            setConfirmation({
+                              type: "delete",
+                              user,
+                            })
+                          }
                         >
                           <Trash2 className="h-4 w-4 text-rose-500" />
                         </ActionBtn>
@@ -1680,6 +1687,50 @@ export default function Users() {
           </>
         )}
       </AnimatePresence>
+
+      <ConfirmationModal
+        open={confirmation !== null}
+        variant={confirmation?.type ?? "delete"}
+        title={
+          confirmation?.type === "reset"
+            ? "Reset Password"
+            : "Delete User"
+        }
+        message={
+          confirmation?.type === "reset"
+            ? `Generate and send a new temporary password for ${confirmation.user.name}?`
+            : `Are you sure you want to delete ${confirmation?.user.name ?? "this user"}?`
+        }
+        details={
+          confirmation?.type === "reset"
+            ? `The temporary password will be sent to ${confirmation.user.email}.`
+            : "This action removes the user from the current list. It cannot be undone from this screen."
+        }
+        confirmText={
+          confirmation?.type === "reset"
+            ? "Reset Password"
+            : "Delete User"
+        }
+        loading={
+          confirmation?.type === "reset" &&
+          resettingUserId === confirmation.user.id
+        }
+        onCancel={() => setConfirmation(null)}
+        onConfirm={() => {
+          if (!confirmation) return;
+
+          if (confirmation.type === "reset") {
+            void resetUserPassword(confirmation.user);
+            return;
+          }
+
+          deleteUser(confirmation.user.id);
+          pushToast(
+            `${confirmation.user.name} removed`,
+          );
+          setConfirmation(null);
+        }}
+      />
     </motion.div>
   );
 }
