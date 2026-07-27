@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 
 import { useWorkspace } from "../state/workspace";
+import { useAuth } from "@/state/AuthContext";
 
 import {
   avatarPalette,
@@ -111,7 +112,7 @@ type NotificationToggleResponse = {
 };
 
 const API_URL =
-  "http://localhost:5000/api";
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
 
 const TABS: {
   key: Tab;
@@ -210,6 +211,7 @@ function formatLastActive(
 
 export default function Users() {
   const { pushToast } = useWorkspace();
+  const { user: currentUser } = useAuth();
 
   const [users, setUsers] = useState<
     UserRecord[]
@@ -276,8 +278,19 @@ export default function Users() {
     try {
       setIsLoadingUsers(true);
 
+      if (!currentUser?.id) {
+        setUsers([]);
+        pushToast("A logged-in admin user is required.");
+        return;
+      }
+
       const response = await fetch(
         `${API_URL}/users`,
+        {
+          headers: {
+            "x-user-id": String(currentUser.id),
+          },
+        },
       );
 
       const data =
@@ -331,8 +344,12 @@ export default function Users() {
   }
 
   useEffect(() => {
-    void loadUsers();
-  }, []);
+    if (currentUser?.id) {
+      void loadUsers();
+    } else {
+      setIsLoadingUsers(false);
+    }
+  }, [currentUser?.id]);
 
   const counts = useMemo(
     () => ({
@@ -450,6 +467,7 @@ export default function Users() {
           headers: {
             "Content-Type":
               "application/json",
+            "x-user-id": String(currentUser?.id ?? ""),
           },
 
           body: JSON.stringify({
@@ -565,6 +583,7 @@ export default function Users() {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
+            "x-user-id": String(currentUser?.id ?? ""),
           },
           body: JSON.stringify({
             name,
@@ -619,6 +638,9 @@ export default function Users() {
         `${API_URL}/users/${user.id}/reset-password`,
         {
           method: "POST",
+          headers: {
+            "x-user-id": String(currentUser?.id ?? ""),
+          },
         },
       );
 
@@ -671,6 +693,7 @@ export default function Users() {
           headers: {
             "Content-Type":
               "application/json",
+            "x-user-id": String(currentUser?.id ?? ""),
           },
 
           body: JSON.stringify({
