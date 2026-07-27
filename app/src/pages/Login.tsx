@@ -16,6 +16,10 @@ import {
   LockKeyhole,
   Mail,
   UsersRound,
+  X,
+  Send,
+  CircleCheck,
+  LoaderCircle,
 } from "lucide-react";
 
 import {
@@ -26,9 +30,14 @@ import {
 
 import { useAuth } from "@/state/AuthContext";
 
+import { AnimatePresence, motion } from "framer-motion";
+
 type LocationState = {
   from?: string;
 };
+
+const API_URL =
+  `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api`;
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -40,6 +49,12 @@ export default function Login() {
     "success" | "error" | ""
   >("");
   const [isLoading, setIsLoading] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [requestingReset, setRequestingReset] = useState(false);
+  const [resetRequestSent, setResetRequestSent] = useState(false);
+  const [resetError, setResetError] = useState("");
+
 
   const { login, isAuthenticated } = useAuth();
 
@@ -53,6 +68,70 @@ export default function Login() {
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
+  }
+
+  function openForgotPasswordDialog(): void {
+    setResetEmail(email.trim());
+    setResetError("");
+    setResetRequestSent(false);
+    setForgotPasswordOpen(true);
+  }
+
+  function closeForgotPasswordDialog(): void {
+    if (requestingReset) {
+      return;
+    }
+
+    setForgotPasswordOpen(false);
+    setResetError("");
+    setResetRequestSent(false);
+  }
+
+  async function requestPasswordReset(): Promise<void> {
+    const cleanEmail = resetEmail.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setResetError("Please enter your company email address.");
+      return;
+    }
+
+    try {
+      setRequestingReset(true);
+      setResetError("");
+
+      const response = await fetch(
+        `${API_URL}/auth/password-reset-request`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: cleanEmail,
+          }),
+        },
+      );
+
+      const data = (await response.json()) as {
+        message?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Unable to send the password reset request.",
+        );
+      }
+
+      setResetRequestSent(true);
+    } catch (error) {
+      setResetError(
+        error instanceof Error
+          ? error.message
+          : "Unable to send the password reset request.",
+      );
+    } finally {
+      setRequestingReset(false);
+    }
   }
 
   async function handleSubmit(
@@ -310,12 +389,7 @@ export default function Login() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setMessage(
-                      "Password recovery will be connected to the email service in the next phase.",
-                    );
-                    setMessageType("success");
-                  }}
+                  onClick={openForgotPasswordDialog}
                   className="text-left text-sm font-medium text-[#8c1230] hover:underline sm:text-right"
                 >
                   Forgot password?
@@ -361,6 +435,162 @@ export default function Login() {
           </div>
         </section>
       </section>
+      <AnimatePresence>
+        {forgotPasswordOpen && (
+          <motion.div
+            className="fixed inset-0 z-[200] grid place-items-center bg-[#17060d]/55 px-4 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={closeForgotPasswordDialog}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="forgot-password-title"
+              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{
+                duration: 0.24,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+              className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/60 bg-white/95 shadow-[0_30px_100px_rgba(23,6,13,0.38)] backdrop-blur-2xl"
+            >
+              <button
+                type="button"
+                onClick={closeForgotPasswordDialog}
+                disabled={requestingReset}
+                aria-label="Close password reset dialog"
+                className="absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/80 text-[#7b6670] shadow-sm transition hover:bg-white hover:text-[#710d25] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+
+              {!resetRequestSent ? (
+                <>
+                  <div className="bg-gradient-to-br from-[#fff7f9] via-white to-[#fffaf2] px-7 pb-6 pt-8">
+                    <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#710d25] text-[#efb63e] shadow-lg shadow-[#710d25]/20">
+                      <LockKeyhole size={25} />
+                    </div>
+
+                    <h2
+                      id="forgot-password-title"
+                      className="mt-5 text-2xl font-bold text-[#4c0d1d]"
+                    >
+                      Request Password Reset
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-[#74676c]">
+                      Passwords can only be reset by an administrator. Send a
+                      request and the admin team will be notified.
+                    </p>
+                  </div>
+
+                  <div className="px-7 pb-7">
+                    <label className="block text-sm font-semibold text-[#31292c]">
+                      Company Email
+                    </label>
+
+                    <div className="relative mt-2">
+                      <Mail
+                        size={19}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#96888d]"
+                      />
+
+                      <input
+                        type="email"
+                        value={resetEmail}
+                        onChange={(event) => {
+                          setResetEmail(event.target.value);
+                          setResetError("");
+                        }}
+                        placeholder="name@patriotpacific.com"
+                        autoFocus
+                        disabled={requestingReset}
+                        className="h-12 w-full rounded-xl border border-[#ded8da] bg-white pl-12 pr-4 text-sm outline-none transition-all duration-300 focus:border-[#941532] focus:ring-4 focus:ring-[#941532]/10 disabled:bg-stone-50"
+                      />
+                    </div>
+
+                    {resetError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                      >
+                        {resetError}
+                      </motion.div>
+                    )}
+
+                    <div className="mt-6 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={closeForgotPasswordDialog}
+                        disabled={requestingReset}
+                        className="flex-1 rounded-xl border border-[#ded8da] bg-white px-4 py-3 text-sm font-semibold text-[#4b3d42] transition hover:bg-[#faf7f8] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void requestPasswordReset()}
+                        disabled={requestingReset}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6f0b24] to-[#a51538] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(126,13,42,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(126,13,42,0.32)] disabled:cursor-not-allowed disabled:opacity-65"
+                      >
+                        {requestingReset ? (
+                          <>
+                            <LoaderCircle size={17} className="animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={17} />
+                            Send Request
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="px-8 py-9 text-center">
+                  <motion.div
+                    initial={{ scale: 0.65, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 240,
+                      damping: 18,
+                    }}
+                    className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50"
+                  >
+                    <CircleCheck size={40} />
+                  </motion.div>
+
+                  <h2 className="mt-6 text-2xl font-bold text-[#26312c]">
+                    Request Sent
+                  </h2>
+
+                  <p className="mt-3 text-sm leading-6 text-[#6f7773]">
+                    The administrator has been notified. Please wait for the
+                    admin to reset your password.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={closeForgotPasswordDialog}
+                    className="mt-7 w-full rounded-xl bg-[#710d25] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#710d25]/20 transition hover:bg-[#8c1230]"
+                  >
+                    Okay
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

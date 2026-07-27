@@ -13,6 +13,7 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import loanFileRoutes from "./routes/loanFiles.js";
 import loanNoteRoutes from "./routes/loanNotes.js";
+import passwordResetRequestRoutes from "./routes/passwordResetRequests.js";
 
 type DatabaseNotification = {
   id: number;
@@ -101,7 +102,7 @@ app.use("/api/loans", loanRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/loan-files", loanFileRoutes);
 app.use("/api/loan-notes", loanNoteRoutes);
-
+app.use("/api/auth", passwordResetRequestRoutes);
 /*
 |--------------------------------------------------------------------------
 | Notifications
