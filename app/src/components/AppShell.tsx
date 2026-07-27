@@ -270,6 +270,10 @@ export default function AppShell() {
 
   const [showStatus, setShowStatus] = useState(false);
 
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+
+  const [isShellLoading, setIsShellLoading] = useState(true);
+
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
 
   const [loanCounts, setLoanCounts] = useState<LoanCounts>({
@@ -359,8 +363,19 @@ export default function AppShell() {
   }
 
   useEffect(() => {
-    void loadNotifications();
-    void loadLoanCounts();
+    let mounted = true;
+
+    async function loadInitialWorkspace(): Promise<void> {
+      setIsShellLoading(true);
+
+      await Promise.all([loadNotifications(), loadLoanCounts()]);
+
+      if (mounted) {
+        setIsShellLoading(false);
+      }
+    }
+
+    void loadInitialWorkspace();
 
     const intervalId = window.setInterval(() => {
       void loadNotifications();
@@ -368,6 +383,7 @@ export default function AppShell() {
     }, 15000);
 
     return () => {
+      mounted = false;
       window.clearInterval(intervalId);
     };
   }, [user?.id]);
@@ -448,6 +464,13 @@ export default function AppShell() {
 
       pushToast("Unable to update notification.");
     }
+  }
+
+  function confirmLogout(): void {
+    setShowLogoutConfirmation(false);
+    setShowProfile(false);
+    logout();
+    navigate("/login", { replace: true });
   }
 
   return (
@@ -640,8 +663,7 @@ export default function AppShell() {
                   type="button"
                   onClick={() => {
                     setShowProfile(false);
-                    logout();
-                    navigate("/login", { replace: true });
+                    setShowLogoutConfirmation(true);
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-300 hover:bg-white/10"
                 >
@@ -697,7 +719,7 @@ export default function AppShell() {
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="glass sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-border px-6">
+        <header className="glass sticky top-0 z-30 flex h-16 shrink-0 items-center gap-4 border-b border-white/40 px-6 shadow-[0_10px_35px_rgba(42,7,19,0.08)] backdrop-blur-xl">
           <div className="min-w-0">
             <h1 className="font-display truncate text-lg font-bold text-foreground">
               {meta.title}
@@ -710,7 +732,7 @@ export default function AppShell() {
 
             <input
               placeholder="Search borrower, LO, ID…"
-              className="h-[38px] w-full rounded-full border border-input bg-white py-2 pl-9 pr-14 text-sm shadow-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10"
+              className="h-[38px] w-full rounded-full border border-input bg-white/90 py-2 pl-9 pr-14 text-sm shadow-[0_6px_20px_rgba(42,7,19,0.06)] outline-none transition-all duration-300 hover:shadow-[0_10px_28px_rgba(42,7,19,0.09)] focus:border-rose-400 focus:ring-4 focus:ring-rose-500/10"
             />
 
             <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-border bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground">
@@ -829,7 +851,17 @@ export default function AppShell() {
           <div className="mx-auto w-full max-w-[1600px] px-6 pb-10 pt-6">
             <p className="mb-5 text-sm text-muted-foreground">{meta.sub}</p>
 
-            <Outlet />
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10, scale: 0.995 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.995 }}
+                transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           <footer className="border-t border-border py-4 text-center text-xs text-muted-foreground">
@@ -837,6 +869,135 @@ export default function AppShell() {
           </footer>
         </main>
       </div>
+
+      {/* Initial workspace loading state — frontend only */}
+      <AnimatePresence>
+        {isShellLoading && (
+          <motion.div
+            className="fixed inset-0 z-[190] grid place-items-center bg-[#f8f5f6]/75 px-4 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+              className="w-full max-w-sm rounded-3xl border border-white/70 bg-white/85 p-7 text-center shadow-[0_30px_100px_rgba(42,7,19,0.22)] ring-1 ring-rose-950/5 backdrop-blur-2xl"
+            >
+              <div className="relative mx-auto grid h-16 w-16 place-items-center">
+                <motion.span
+                  className="absolute inset-0 rounded-full border-4 border-rose-100"
+                  aria-hidden="true"
+                />
+
+                <motion.span
+                  className="absolute inset-0 rounded-full border-4 border-transparent border-t-rose-700"
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    duration: 0.9,
+                    ease: "linear",
+                    repeat: Infinity,
+                  }}
+                  aria-hidden="true"
+                />
+
+                <motion.div
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{ duration: 1.4, repeat: Infinity }}
+                  className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-rose-600 to-[#4b0a1c] text-amber-300 shadow-lg shadow-rose-950/25"
+                >
+                  <Database className="h-5 w-5" />
+                </motion.div>
+              </div>
+
+              <h2 className="mt-5 font-display text-lg font-bold text-foreground">
+                Loading workspace
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Preparing loans, notifications and dashboard information.
+              </p>
+
+              <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-rose-100">
+                <motion.div
+                  className="h-full w-1/2 rounded-full bg-gradient-to-r from-rose-500 to-[#4b0a1c]"
+                  animate={{ x: ["-110%", "210%"] }}
+                  transition={{
+                    duration: 1.15,
+                    ease: "easeInOut",
+                    repeat: Infinity,
+                  }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Logout confirmation dialog */}
+      <AnimatePresence>
+        {showLogoutConfirmation && (
+          <motion.div
+            className="fixed inset-0 z-[200] grid place-items-center bg-black/45 px-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={() => setShowLogoutConfirmation(false)}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="logout-dialog-title"
+              initial={{ opacity: 0, y: 18, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              onMouseDown={(event) => event.stopPropagation()}
+              className="w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-white/95 p-6 shadow-[0_28px_90px_rgba(42,7,19,0.35)] backdrop-blur-xl"
+            >
+              <div className="flex items-start gap-4">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-rose-100 text-rose-700 ring-1 ring-rose-200">
+                  <LogOut className="h-5 w-5" />
+                </div>
+
+                <div className="min-w-0">
+                  <h2
+                    id="logout-dialog-title"
+                    className="font-display text-lg font-bold text-foreground"
+                  >
+                    Confirm logout
+                  </h2>
+
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    Are you sure you want to log out of your account?
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirmation(false)}
+                  className="rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted active:scale-[0.98]"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={confirmLogout}
+                  className="rounded-xl bg-[#4b0a1c] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-950/20 transition hover:bg-[#6d102c] active:scale-[0.98]"
+                >
+                  Yes, logout
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Loan sheets */}
       <LoanDetailsSheet />
@@ -864,7 +1025,7 @@ export default function AppShell() {
                 y: 8,
                 scale: 0.96,
               }}
-              className="pointer-events-auto flex items-center gap-3 rounded-xl bg-[#2a0713] px-4 py-3 text-sm font-medium text-white shadow-xl ring-1 ring-white/10"
+              className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/10 bg-[#2a0713]/95 px-4 py-3 text-sm font-medium text-white shadow-[0_18px_55px_rgba(42,7,19,0.30)] ring-1 ring-white/10 backdrop-blur-xl transition-shadow duration-300 hover:shadow-[0_22px_65px_rgba(42,7,19,0.38)]"
             >
               <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" />
 
