@@ -1,35 +1,8 @@
-import dns from "node:dns";
-import nodemailer from "nodemailer";
+const makeWebhookUrl =
+  process.env.MAKE_EMAIL_WEBHOOK_URL;
 
-dns.setDefaultResultOrder("ipv4first");
-
-const emailUser =
-  process.env.EMAIL_USER;
-
-const emailAppPassword =
-  process.env.EMAIL_APP_PASSWORD;
-
-if (!emailUser || !emailAppPassword) {
-  console.warn(
-    "Email credentials are missing. Check EMAIL_USER and EMAIL_APP_PASSWORD.",
-  );
-}
-
-const transporter =
-  nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-
-    auth: {
-      user: emailUser,
-      pass: emailAppPassword,
-    },
-
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
-  });
+const makeWebhookSecret =
+  process.env.MAKE_WEBHOOK_SECRET;
 
 const frontendUrl =
   process.env.FRONTEND_URL ??
@@ -38,6 +11,12 @@ const frontendUrl =
 const senderName =
   process.env.EMAIL_FROM_NAME ??
   "Patriot Pacific Financial Corp.";
+
+if (!makeWebhookUrl) {
+  console.warn(
+    "MAKE_EMAIL_WEBHOOK_URL is missing.",
+  );
+}
 
 function escapeHtml(
   value: string,
@@ -105,7 +84,7 @@ function emailLayout({
                     padding:11px 15px;
                     border-radius:9px;
                     background:#710d25;
-                    color:#fff;
+                    color:#ffffff;
                     font-size:18px;
                     font-weight:800;
                     letter-spacing:1px;
@@ -150,7 +129,7 @@ function emailLayout({
             style="
               max-width:620px;
               margin:0 auto;
-              background:#fff;
+              background:#ffffff;
               border-radius:18px;
               overflow:hidden;
               box-shadow:
@@ -167,7 +146,7 @@ function emailLayout({
                     #350711,
                     #8c1230
                   );
-                color:#fff;
+                color:#ffffff;
               "
             >
               <div
@@ -253,7 +232,7 @@ function emailLayout({
                         padding:12px 23px;
                         background:#8c1230;
                         border-radius:10px;
-                        color:#fff;
+                        color:#ffffff;
                         text-decoration:none;
                         font-weight:800;
                       "
@@ -310,6 +289,12 @@ function emailLayout({
   `;
 }
 
+/*
+|--------------------------------------------------------------------------
+| Make Webhook Email Delivery
+|--------------------------------------------------------------------------
+*/
+
 async function deliverEmail(
   options: {
     to: string;
@@ -318,54 +303,76 @@ async function deliverEmail(
     html: string;
   },
 ): Promise<void> {
-  if (
-    !emailUser ||
-    !emailAppPassword
-  ) {
+  if (!makeWebhookUrl) {
     throw new Error(
-      "Email service credentials are not configured.",
+      "MAKE_EMAIL_WEBHOOK_URL is not configured.",
     );
   }
 
-  await transporter.sendMail({
-    from: {
-      name: senderName,
-      address: emailUser,
-    },
+  const response = await fetch(
+    makeWebhookUrl,
+    {
+      method: "POST",
 
-    ...options,
-  });
+      headers: {
+        "Content-Type":
+          "application/json",
+
+        "x-webhook-secret":
+          makeWebhookSecret ?? "",
+      },
+
+      body: JSON.stringify({
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+        senderName,
+
+        source:
+          "patriot-pacific-backend",
+
+        sentAt:
+          new Date().toISOString(),
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const responseText =
+      await response.text();
+
+    throw new Error(
+      `Make webhook failed (${response.status}): ${responseText}`,
+    );
+  }
 }
 
+/*
+|--------------------------------------------------------------------------
+| Verify Email Service
+|--------------------------------------------------------------------------
+*/
+
 export async function verifyEmailConnection(): Promise<void> {
-  if (
-    !emailUser ||
-    !emailAppPassword
-  ) {
+  if (!makeWebhookUrl) {
     console.warn(
-      "Email verification skipped because credentials are missing.",
+      "Make email webhook is not configured.",
     );
 
     return;
   }
 
-  try {
-    await transporter.verify();
-
-    console.log(
-      "Email service connected successfully.",
-    );
-  } catch (error) {
-    console.warn(
-      "Email service is unavailable. Backend will continue running.",
-    );
-
-    console.error(
-      "Email connection error:",
-      error,
-    );
-  }
+  console.log(
+    "Make email webhook is configured.",
+  );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Temporary Password Email
+|--------------------------------------------------------------------------
+*/
 
 type TemporaryPasswordReason =
   | "account_created"
@@ -428,8 +435,10 @@ You must change this temporary password after signing in.
 
     html: emailLayout({
       title,
+
       greeting:
         `Hello ${recipientName},`,
+
       message,
 
       details: [
@@ -451,6 +460,7 @@ You must change this temporary password after signing in.
       ],
 
       buttonLabel: "Sign In",
+
       buttonUrl:
         `${frontendUrl}/login`,
 
@@ -460,9 +470,15 @@ You must change this temporary password after signing in.
   });
 
   console.log(
-    `Temporary password email sent to ${recipientEmail}.`,
+    `Temporary password webhook sent for ${recipientEmail}.`,
   );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Email Changed Security Alert
+|--------------------------------------------------------------------------
+*/
 
 export async function sendEmailChangedSecurityAlert(
   options: {
@@ -518,6 +534,12 @@ If you did not expect this change, contact your administrator immediately.
     }),
   });
 }
+
+/*
+|--------------------------------------------------------------------------
+| Account Updated Email
+|--------------------------------------------------------------------------
+*/
 
 export async function sendAccountUpdatedEmail(
   options: {
@@ -575,6 +597,12 @@ Role: ${options.role}
   });
 }
 
+/*
+|--------------------------------------------------------------------------
+| Generic Email
+|--------------------------------------------------------------------------
+*/
+
 export interface SendMailOptions {
   to: string;
   subject: string;
@@ -600,7 +628,7 @@ export async function sendMail(
     return true;
   } catch (error) {
     console.error(
-      "Failed to send email:",
+      "Failed to send email using Make webhook:",
       error,
     );
 
