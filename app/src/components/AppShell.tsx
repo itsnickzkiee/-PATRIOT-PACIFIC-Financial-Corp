@@ -212,10 +212,9 @@ function SidebarNavigationLink({
       to={item.to}
       end={item.end}
       className={({ isActive }) =>
-        `group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
-          isActive
-            ? "bg-white/10 text-white ring-1 ring-white/10"
-            : "text-rose-100/60 hover:bg-white/5 hover:text-white"
+        `group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${isActive
+          ? "bg-white/10 text-white ring-1 ring-white/10"
+          : "text-rose-100/60 hover:bg-white/5 hover:text-white"
         }`
       }
     >
@@ -233,10 +232,10 @@ function SidebarNavigationLink({
           <span>{item.label}</span>
 
           {typeof count === "number" && count > 0 && (
-       <span className="ml-auto min-w-[25px] rounded-full bg-amber-400/15 px-2 py-0.5 text-center text-[10px] font-bold text-amber-300 ring-1 ring-amber-400/30">
-        {count}
-      </span>
-      )}
+            <span className="ml-auto min-w-[25px] rounded-full bg-amber-400/15 px-2 py-0.5 text-center text-[10px] font-bold text-amber-300 ring-1 ring-amber-400/30">
+              {count}
+            </span>
+          )}
         </>
       )}
     </NavLink>
@@ -292,9 +291,9 @@ export default function AppShell() {
 
   const meta = isEditLoanPage
     ? {
-        title: "Edit Loan",
-        sub: "Update loan information and save the changes to the database.",
-      }
+      title: "Edit Loan",
+      sub: "Update loan information and save the changes to the database.",
+    }
     : (TITLES[location.pathname] ?? TITLES["/"]);
 
   async function loadLoanCounts(): Promise<void> {
@@ -436,33 +435,69 @@ export default function AppShell() {
     }
   }
 
-  async function markNotificationAsRead(notificationId: number): Promise<void> {
+  async function markNotificationAsRead(
+    notificationId: number,
+  ): Promise<boolean> {
+    if (!user?.id) {
+      pushToast(
+        "A logged-in user is required.",
+      );
+
+      return false;
+    }
+
     try {
       const response = await fetch(
         `${API_URL}/notifications/${notificationId}/read`,
         {
           method: "PATCH",
+          headers: {
+            "Content-Type":
+              "application/json",
+            "x-user-id": String(user.id),
+          },
+          body: JSON.stringify({
+            userId: user.id,
+          }),
         },
       );
 
+      const data = await response
+        .json()
+        .catch(() => null);
+
       if (!response.ok) {
-        throw new Error("Unable to update notification.");
+        throw new Error(
+          data?.message ??
+          "Unable to update notification.",
+        );
       }
 
       setNotifications((items) =>
         items.map((notification) =>
           notification.id === notificationId
             ? {
-                ...notification,
-                read: true,
-              }
+              ...notification,
+              read: true,
+            }
             : notification,
         ),
       );
-    } catch (error) {
-      console.error("Mark notification error:", error);
 
-      pushToast("Unable to update notification.");
+      return true;
+    } catch (error) {
+      console.error(
+        "Mark notification error:",
+        error,
+      );
+
+      pushToast(
+        error instanceof Error
+          ? error.message
+          : "Unable to update notification.",
+      );
+
+      return false;
     }
   }
 
@@ -597,10 +632,9 @@ export default function AppShell() {
             <NavLink
               to="/knowledge-base"
               className={({ isActive }) =>
-                `flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-white/10 text-white ring-1 ring-white/10"
-                    : "text-rose-100/60 hover:bg-white/5 hover:text-white"
+                `flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${isActive
+                  ? "bg-white/10 text-white ring-1 ring-white/10"
+                  : "text-rose-100/60 hover:bg-white/5 hover:text-white"
                 }`
               }
             >
@@ -814,17 +848,33 @@ export default function AppShell() {
                     <button
                       type="button"
                       key={notification.id}
-                      onClick={() => markNotificationAsRead(notification.id)}
-                      className={`flex w-full gap-3 rounded-xl px-3 py-3 text-left text-sm transition hover:bg-muted ${
-                        notification.read
+                      onClick={async () => {
+                        const updated =
+                          await markNotificationAsRead(
+                            notification.id,
+                          );
+
+                        if (!updated) {
+                          return;
+                        }
+
+                        setShowNotifications(false);
+
+                        if (
+                          notification.type ===
+                          "password_reset_request"
+                        ) {
+                          navigate("/users");
+                        }
+                      }}
+                      className={`flex w-full gap-3 rounded-xl px-3 py-3 text-left text-sm transition hover:bg-muted ${notification.read
                           ? "text-muted-foreground"
                           : "bg-rose-50/60 font-medium text-foreground"
-                      }`}
+                        }`}
                     >
                       <span
-                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                          notification.read ? "bg-stone-300" : "bg-rose-600"
-                        }`}
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${notification.read ? "bg-stone-300" : "bg-rose-600"
+                          }`}
                       />
 
                       {notification.message}

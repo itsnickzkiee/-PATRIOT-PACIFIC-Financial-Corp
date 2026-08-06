@@ -676,44 +676,40 @@ router.post(
   "/:id/reset-password",
   async (req, res) => {
     try {
-      const userId =
-        Number(req.params.id);
+      const userId = Number(req.params.id);
 
       if (
         !Number.isInteger(userId) ||
         userId <= 0
       ) {
         res.status(400).json({
-          message:
-            "Invalid user ID.",
+          message: "Invalid user ID.",
         });
 
         return;
       }
 
-      const [rows] =
-        await pool.query(
-          `
-          SELECT
-            id,
-            full_name,
-            email,
-            role,
-            notifications_enabled
-          FROM users
-          WHERE id = ?
-          LIMIT 1
-          `,
-          [userId],
-        );
+      const [rows] = await pool.query(
+        `
+        SELECT
+          id,
+          full_name,
+          email,
+          role,
+          notifications_enabled
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [userId],
+      );
 
       const user =
         (rows as DatabaseUser[])[0];
 
       if (!user) {
         res.status(404).json({
-          message:
-            "User not found.",
+          message: "User not found.",
         });
 
         return;
@@ -722,11 +718,37 @@ router.post(
       const temporaryPassword =
         generateTemporaryPassword();
 
-      const passwordHash =
-        await bcrypt.hash(
+      /*
+       * Send the temporary password first.
+       * Do not change the database password
+       * when email delivery fails.
+       */
+      try {
+        await sendTemporaryPasswordEmail({
+          recipientName: user.full_name,
+          recipientEmail: user.email,
           temporaryPassword,
-          10,
+          role: user.role,
+          reason: "password_reset",
+        });
+      } catch (emailError) {
+        console.error(
+          "Password reset email failed:",
+          emailError,
         );
+
+        res.status(502).json({
+          message:
+            "Unable to send the temporary password email. The user's password was not changed.",
+        });
+
+        return;
+      }
+
+      const passwordHash = await bcrypt.hash(
+        temporaryPassword,
+        12,
+      );
 
       await pool.query(
         `
@@ -741,23 +763,26 @@ router.post(
         [passwordHash, userId],
       );
 
-      await sendTemporaryPasswordEmail({
-        recipientName:
-          user.full_name,
-        recipientEmail: user.email,
-        temporaryPassword,
-        role: user.role,
-        reason: "password_reset",
-      });
+      try {
+        await addNotification(
+          userId,
+          "Your password was reset by an administrator. A temporary password was sent to your email.",
+          "password_reset",
+          Boolean(
+            user.notifications_enabled,
+          ),
+        );
+      } catch (notificationError) {
+        console.error(
+          "Password reset notification failed:",
+          notificationError,
+        );
 
-      await addNotification(
-        userId,
-        "Your password was reset by an administrator. A temporary password was sent to your email.",
-        "password_reset",
-        Boolean(
-          user.notifications_enabled,
-        ),
-      );
+        /*
+         * Do not fail the password reset because
+         * the email and database update succeeded.
+         */
+      }
 
       res.json({
         message:
@@ -771,12 +796,11 @@ router.post(
 
       res.status(500).json({
         message:
-          "Unable to reset the password or send the email.",
+          "Unable to reset the password.",
       });
     }
   },
 );
-
 /*
 |--------------------------------------------------------------------------
 | Notification Preference
